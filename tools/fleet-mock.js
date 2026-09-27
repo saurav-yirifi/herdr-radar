@@ -30,7 +30,7 @@ const plain = process.argv.includes('--plain');
 // recent). sb-herdr-manager is the manager's workspace: the manager, the
 // trio's builder, and two role panes.
 const PANES = [
-  { ws: 'sb-herdr-manager', title: 'herdr-fleet-manager', display: 'idle', token: null, idle: 4 * MIN, sort: 88 },
+  { ws: 'sb-herdr-manager', title: 'herdr-fleet-manager', display: 'idle', token: null, idle: 4 * MIN, sort: 88, owner: 'you: 52 · oldest 83h' },
   { ws: 'sb-herdr-manager', title: 'builder: YIR-551', display: 'working', token: null, idle: 0, sort: 96 },
   { ws: 'sb-herdr-manager', title: 'executor', display: 'idle', token: '8|role|executor', idle: 5 * MIN, sort: 50 },
   { ws: 'sb-herdr-manager', title: 'dispatcher', display: 'idle', token: '8|role|dispatcher', idle: 2 * MIN, sort: 60 },
@@ -97,6 +97,8 @@ for (const row of shown) {
   const badge = row.badge ? paint(row.badge.padEnd(9), colour) : ' '.repeat(9);
   const corner = (tree.get(row.pane) ?? '').padEnd(3);
   console.log(`    ${corner}${row.rank}  ${badge} ${row.display.padEnd(10)} ${row.title}`);
+  // The owner's glance (YIR-687): the manager's fleet_owner token, its own row.
+  if (row.owner) console.log(`    ${' '.repeat(3)}   ${' '.repeat(9)} ${paint(row.owner, ink.blocked)}`);
   if (tails.has(row.pane)) console.log('');
 }
 
