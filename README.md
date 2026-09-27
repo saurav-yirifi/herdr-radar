@@ -238,6 +238,7 @@ the config file and restarts the daemon.
 | `reorder_workspaces` | `false` | make Herdr's workspace indices follow Radar's activity order |
 | `fleet_view` | `false` | the fleet view: a `fleet` order, needs-you first, and a badge word per row, from a fleet manager's `hm_fleet` token (below) |
 | `machine_name` | the host name | with `fleet_view`: the name this machine's rows sort under in a window attached to several machines (below) |
+| `machine_label` | `machine_name`, else the host name | with `fleet_view`: the header above this machine's groups, e.g. `mini-1` (below) |
 | `show_tab` | `false` | tab number in front of the title |
 | `trim_group_prefix` | `true` | drop the workspace name from a title when the header above already shows it |
 | `worktree_mark` | `U+F418` | the mark on a worktree header, needs a Nerd Font; empty for none |
@@ -293,6 +294,9 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
 - **machines kept apart**: in a window attached to other machines, every order sorts this
   machine's rows first, then each other machine by `machine_name`, so a machine's groups stay
   together under their headers. Each pane carries `machine_key` and `on_<machine_name>`.
+- **a machine header**: the first row of each machine's block carries `machine_label` on a row
+  of its own, and every group under it sits one level in, so a window attached to two machines
+  reads as two named blocks.
 - **a badge word** in front of the logo: `ask` in the blocked red, `owner` in the unknown violet,
   `tray 3`, `idle 2h` (the age is the plugin's own, so it stays current between the manager's
   writes), `role`, `test`.

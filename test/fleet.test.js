@@ -134,14 +134,22 @@ test("with the fleet view on, the badge is one cell and every row stays within H
   const cells = on.match(/\{ token = "\$fleet_badge"[^\n]*?\] \}, /g) ?? [];
   assert.ok(cells.length > 0, 'no badge cell in the block');
   assert.equal(new Set(cells).size, 1, 'one badge cell, the same on every row');
-  assert.equal(on.split(cells[0]).join(''), off, 'the badge cell is the only difference');
+  // The machine header (YIR-657) is the first row of every entry, one cell.
+  const machine = on.match(/\[\{ token = "\$fleet_machine"[^\n]*?\}\], /g) ?? [];
+  assert.ok(machine.length > 0, 'no machine row in the block');
+  assert.equal(new Set(machine).size, 1, 'one machine row, the same on every entry');
+  assert.equal(
+    on.split(cells[0]).join('').split(machine[0]).join(''),
+    off,
+    'the badge cell and the machine row are the only differences',
+  );
   // sidebarBlock throws when a row passes the limit; this is the count it checks.
-  const count = (block) => {
-    const row = block.split('\n').find((line) => line.startsWith('rows = ['));
-    return (row.split('], [')[2].match(/token = "/g) ?? []).length;
+  const count = (block, row) => {
+    const line = block.split('\n').find((l) => l.startsWith('rows = ['));
+    return (line.split('], [')[row].match(/token = "/g) ?? []).length;
   };
-  assert.equal(count(on), count(off) + 1);
-  assert.ok(count(on) <= 16, `${count(on)} tokens on the agent row`);
+  assert.equal(count(on, 3), count(off, 2) + 1);
+  assert.ok(count(on, 3) <= 16, `${count(on, 3)} tokens on the agent row`);
 });
 
 test('the frame writes the rank and badge once, and again only when they change', async (t) => {
