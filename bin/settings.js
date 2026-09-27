@@ -33,8 +33,8 @@ const identity = require('../lib/identity');
 
 // The order row's words, and the lib/view.js modes they stand for. `off` is
 // Herdr's own order — the plugin's rows stay, only the sort override goes.
-const ORDER_MODE = { active: 'grouped', recent: 'recent', off: null };
-const MODE_ORDER = { grouped: 'active', recent: 'recent', null: 'off' };
+const ORDER_MODE = { fleet: 'fleet', active: 'grouped', recent: 'recent', off: null };
+const MODE_ORDER = { fleet: 'fleet', grouped: 'active', recent: 'recent', null: 'off' };
 
 // Whether the plugin's sidebar rows are installed — the managed block's
 // presence in Herdr's config IS that state (lib/managed-config.js).
@@ -65,11 +65,19 @@ const FIELDS = [
   {
     key: 'order',
     kind: 'enum',
-    options: ['active', 'recent', 'off'],
+    // `fleet` only while the fleet view is on: with it off nothing writes the
+    // tokens that order sorts on (lib/view.js available).
+    options: [...(config.fleetView ? ['fleet'] : []), 'active', 'recent', 'off'],
     fallback: 'active',
     virtual: true,
     read: orderValue,
-    help: "Agents panel order: active (grouped, busiest first, stale last), recent (flat, by activity) or off (Herdr's own order). Applies while agents_panel is plugin.",
+    help: "Agents panel order: fleet (needs-you first; only with fleet_view on), active (grouped, busiest first, stale last), recent (flat, by activity) or off (Herdr's own order). Applies while agents_panel is plugin.",
+  },
+  {
+    key: 'fleet_view',
+    kind: 'bool',
+    fallback: false,
+    help: "The fleet view: a needs-you-first order and a badge word per row, read from a fleet manager's hm_fleet token.",
   },
   {
     key: 'reorder_workspaces',
