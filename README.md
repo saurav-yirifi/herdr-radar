@@ -233,7 +233,7 @@ the config file and restarts the daemon.
 | `activity_fresh_minutes` | `15` | how long after the last turn a pane still reads as fresh |
 | `activity_stale_minutes` | `120` | how long without a turn before the row dims |
 | `group_indent` | `2` | member indent under a header; `0` for a flat list |
-| `group_gap` | `1` | the blank row between groups: `1`, or `0` (`false`) for none |
+| `group_gap` | `1` (`0` with `fleet_view`) | the blank row between groups: `1`, or `0` (`false`) for none |
 | `split_corner` | `false` | hang the other panes of a split screen off the first with a `├─` corner |
 | `reorder_workspaces` | `false` | make Herdr's workspace indices follow Radar's activity order |
 | `fleet_view` | `false` | the fleet view: a `fleet` order, needs-you first, and a badge word per row, from a fleet manager's `hm_fleet` token (below) |

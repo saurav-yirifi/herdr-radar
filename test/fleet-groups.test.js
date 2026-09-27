@@ -189,6 +189,8 @@ test('group_gap reads 0 or false as no spacer, anything else as one row; machine
   assert.equal(read('group_gap = false\n')[0], 0);
   assert.equal(read('group_gap = 1\n')[0], 1);
   assert.equal(read('')[0], 1);
+  assert.equal(read('fleet_view = true\n')[0], 0, 'the fleet view drops the spacer unless asked for');
+  assert.equal(read('fleet_view = true\ngroup_gap = 1\n')[0], 1);
   assert.deepEqual(read('machine_name = "Sauravs-Mac-mini.local"\n').slice(1), [
     'sauravs_mac_mini',
     'on_sauravs_mac_mini',
