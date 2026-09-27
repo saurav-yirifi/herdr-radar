@@ -7,8 +7,9 @@
 // headers and the tree inside a workspace (lib/state.js) -> one line per row,
 // the badge coloured by the same rules the sidebar block writes. Then a window
 // attached to two machines, sorted by view.sortFor, and the spacer at
-// group_gap 1 and 0. It is not Herdr drawing the panel; the real one comes
-// from installing the plugin. `--plain` drops the colour.
+// group_gap 1 and 0, with the machine header over each machine's block. It
+// is not Herdr drawing the panel; the real one comes from installing the
+// plugin. `--plain` drops the colour.
 //
 //   node tools/fleet-mock.js [--plain]
 
@@ -86,7 +87,10 @@ const shown = Frame.prototype.fleetOrder(
 const { heads, tails } = state.groupBoundaries(shown);
 const tree = state.treeCorners(shown);
 
+// The machine header (YIR-657) heads the block; every group sits under it.
+config.machineLabel = 'mini-1';
 console.log('MOCK - fleet view (fleet_view = true), order: fleet');
+console.log(paint(config.machineLabel, ink.idleStale));
 for (const row of shown) {
   if (heads.has(row.pane)) console.log(`  ${paint(row.ws, ink.subtle)}`);
   const colour = COLOURS.find(([word]) => row.badge?.includes(word))?.[1];
@@ -100,11 +104,13 @@ for (const row of shown) {
 // keys ITS radar wrote, and workspace ids repeat across machines - both have a
 // w4 - so without a machine level MacBook 1's w4 row sorts into the middle of
 // the mini's (the owner's MacBook 2 window, 2026-09-27).
+const LABELS = { mini: 'mini-1', macbook: 'mac-1' };
 const WINDOW = [
   { m: 'mini', id: 'w4', ws: 'sb-herdr-manager', title: 'herdr-fleet-manager', key: '4-a', row: '0-4' },
   { m: 'macbook', id: 'w4', ws: 'yirifi-ops-refinery', title: 'ops-refinery', key: '4-a', row: '0-5' },
   { m: 'mini', id: 'w4', ws: 'sb-herdr-manager', title: 'builder', key: '4-a', row: '1-4' },
   { m: 'mini', id: 'w9', ws: 'billing', title: 'nothing queued', key: '5-b', row: '0-5' },
+  { m: 'macbook', id: 'w2', ws: 'devops', title: 'which env file?', key: '1-c', row: '0-1' },
 ].map((r) => ({
   ...r,
   machine_key: r.m,
@@ -132,7 +138,14 @@ for (const [label, sort] of [
   ['machine first (this window: mini)', view.sortFor('fleet')],
 ]) {
   console.log(`MOCK - a window on the mini attached to MacBook 1, ${label}`);
-  for (const r of herdrSort(WINDOW, sort)) console.log(`  ${r.m.padEnd(8)} ${r.ws.padEnd(20)} ${r.title}`);
+  // Each machine's radar writes the header on its own first row in this order,
+  // so it heads that machine's block (fleet_machine, lib/state.js writeGroups).
+  let machine = null;
+  for (const r of herdrSort(WINDOW, sort)) {
+    if (r.m !== machine) console.log(paint(LABELS[r.m], ink.idleStale));
+    machine = r.m;
+    console.log(`  ${r.ws.padEnd(20)} ${r.title}`);
+  }
   console.log('');
 }
 

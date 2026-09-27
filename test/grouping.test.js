@@ -15,6 +15,15 @@ const state = require('../lib/state');
 const { Frame } = require('../lib/frame');
 
 const MIN = 60000;
+// These draw the upstream layout, whatever this machine's own config says.
+function withoutFleet(t) {
+  const was = config.fleetView;
+  config.fleetView = false;
+  t.after(() => {
+    config.fleetView = was;
+  });
+}
+
 const MARK = config.worktreeMark ? `${config.worktreeMark} ` : '';
 const REPO = 'axi-ai-wspace-app';
 const ENTRIES = [
@@ -49,6 +58,7 @@ test("two orphans of one repo rank as one family, contiguous, by the most recent
 });
 
 test('two orphans of one repo draw ONE synthesised header, a tee then a corner', async (t) => {
+  withoutFleet(t); // the upstream layout; the fleet view's machine level is fleet-groups.test.js
   const writes = new Map();
   t.mock.method(herdr, 'reportMetadataAsync', async (pane, src, tokens) => {
     writes.set(pane, tokens);
@@ -75,6 +85,7 @@ test('two orphans of one repo draw ONE synthesised header, a tee then a corner',
 });
 
 test('a lone orphan draws exactly as before: its repo row, then a corner', async (t) => {
+  withoutFleet(t); // the upstream layout; the fleet view's machine level is fleet-groups.test.js
   const writes = new Map();
   t.mock.method(herdr, 'reportMetadataAsync', async (pane, src, tokens) => {
     writes.set(pane, tokens);

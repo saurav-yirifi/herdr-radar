@@ -166,6 +166,108 @@ test('the spacer between groups is one row, or none with group_gap = 0', async (
   assert.deepEqual(await gaps(0), { a1: null, a2: null, b1: null });
 });
 
+// The machine header (YIR-657): one row naming this machine above all of its
+// groups, and everything under it one level in.
+function withFleetView(t, on, label) {
+  const was = [config.fleetView, config.machineLabel];
+  config.fleetView = on;
+  config.machineLabel = label;
+  t.after(() => {
+    [config.fleetView, config.machineLabel] = was;
+  });
+}
+
+async function groupWrites(t, shown, labels, tree) {
+  const writes = new Map();
+  t.mock.method(herdr, 'reportMetadataAsync', async (pane, src, tokens) => {
+    writes.set(pane, tokens);
+    return true;
+  });
+  const { ok } = await state.writeGroups('test', shown, labels, new Set(), tree);
+  assert.equal(ok, true);
+  return writes;
+}
+
+test("the machine's name heads its first drawn row only, and every group sits one level under it", async (t) => {
+  withFleetView(t, true, 'mini-1');
+  const shown = [
+    { pane: 'w4:p1', workspace: 'w4' },
+    { pane: 'w4:p6', workspace: 'w4' },
+    { pane: 'w9:p1', workspace: 'w9' },
+  ];
+  const labels = new Map([
+    ['w4', 'sb-herdr-manager'],
+    ['w9', 'billing'],
+  ]);
+  const writes = await groupWrites(t, shown, labels);
+  assert.deepEqual(
+    [...writes].map(([pane, tokens]) => [pane, tokens.fleet_machine]),
+    [
+      ['w4:p1', 'mini-1'],
+      ['w4:p6', null],
+      ['w9:p1', null],
+    ],
+  );
+  // Under the machine row w4's header is Herdr's continuation row, indented by
+  // Herdr; w9's header is its pane's first row, so the level is ours to add.
+  assert.equal(writes.get('w4:p1').group, 'sb-herdr-manager');
+  assert.equal(writes.get('w9:p1').group, `${state.INDENT}billing`);
+});
+
+test('under the machine header a worktree and an orphan sit one level deeper too', async (t) => {
+  withFleetView(t, true, 'mac-2');
+  const shown = [
+    { pane: 'a:p1', workspace: 'a' },
+    { pane: 'b:p1', workspace: 'b' },
+    { pane: 'o:p1', workspace: 'o' },
+  ];
+  const labels = new Map([
+    ['a', 'repo'],
+    ['b', 'feat-x'],
+    ['o', 'feat-y'],
+  ]);
+  const mark = config.worktreeMark ? `${config.worktreeMark} ` : '';
+  const writes = await groupWrites(t, shown, labels, {
+    parentOf: new Map([['b', 'a']]),
+    orphanRepo: new Map([['o', 'other-repo']]),
+  });
+  assert.equal(writes.get('b:p1').group, `${state.INDENTS[2]}└─ ${mark}feat-x`);
+  // The orphan's pane is not the machine's: its repo row is its first row and
+  // takes our level; its own header is Herdr's continuation plus ours.
+  assert.equal(writes.get('o:p1').group_parent, `${state.INDENT}other-repo`);
+  assert.equal(writes.get('o:p1').group, `${state.INDENT}└─ ${mark}feat-y`);
+});
+
+test('an orphan that heads the machine takes its level from Herdr on the repo row', async (t) => {
+  withFleetView(t, true, 'mac-1');
+  const mark = config.worktreeMark ? `${config.worktreeMark} ` : '';
+  const writes = await groupWrites(t, [{ pane: 'o:p1', workspace: 'o' }], new Map([['o', 'feat-y']]), {
+    parentOf: new Map(),
+    orphanRepo: new Map([['o', 'other-repo']]),
+  });
+  assert.equal(writes.get('o:p1').fleet_machine, 'mac-1');
+  assert.equal(writes.get('o:p1').group_parent, 'other-repo');
+  assert.equal(writes.get('o:p1').group, `${state.INDENT}└─ ${mark}feat-y`);
+});
+
+test('an agent row sits one level deeper under the machine header, and not at all in a flat order', (t) => {
+  withFleetView(t, true, 'mini-1');
+  assert.deepEqual(
+    [state.rowDepth(true, true, false), state.rowDepth(true, false, false), state.rowDepth(true, false, true)],
+    [1, 2, 3],
+  );
+  assert.equal(state.rowDepth(false, false, true), 0);
+  config.fleetView = false;
+  assert.deepEqual([state.rowDepth(true, true, false), state.rowDepth(true, false, true)], [0, 2]);
+});
+
+test('with the fleet view off no machine header is written and no group moves', async (t) => {
+  withFleetView(t, false, 'mini-1');
+  const writes = await groupWrites(t, [{ pane: 'w9:p1', workspace: 'w9' }], new Map([['w9', 'billing']]));
+  assert.equal('fleet_machine' in writes.get('w9:p1'), false);
+  assert.equal(writes.get('w9:p1').group, 'billing');
+});
+
 test('group_gap reads 0 or false as no spacer, anything else as one row; machine_name names the machine', () => {
   const fs = require('node:fs');
   const os = require('node:os');
@@ -178,7 +280,7 @@ test('group_gap reads 0 or false as no spacer, anything else as one row; machine
       process.execPath,
       [
         '-e',
-        "const c = require('./lib/config'); console.log(JSON.stringify([c.groupGap, c.machineKey, c.machineToken]))",
+        "const c = require('./lib/config'); console.log(JSON.stringify([c.groupGap, c.machineKey, c.machineToken, c.machineLabel]))",
       ],
       { cwd: path.join(__dirname, '..'), env: { ...process.env, HERDR_PLUGIN_CONFIG_DIR: dir } },
     );
@@ -194,5 +296,8 @@ test('group_gap reads 0 or false as no spacer, anything else as one row; machine
   assert.deepEqual(read('machine_name = "Sauravs-Mac-mini.local"\n').slice(1), [
     'sauravs_mac_mini',
     'on_sauravs_mac_mini',
+    'Sauravs-Mac-mini.local',
   ]);
+  assert.equal(read('machine_label = "mini-1"\nmachine_name = "x"\n')[3], 'mini-1', 'the label the owner reads');
+  assert.equal(read('')[3], os.hostname().split('.')[0], 'else the host name, no domain');
 });
