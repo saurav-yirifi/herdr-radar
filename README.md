@@ -233,10 +233,11 @@ the config file and restarts the daemon.
 | `activity_fresh_minutes` | `15` | how long after the last turn a pane still reads as fresh |
 | `activity_stale_minutes` | `120` | how long without a turn before the row dims |
 | `group_indent` | `2` | member indent under a header; `0` for a flat list |
-| `group_gap` | `true` | a blank row between groups |
+| `group_gap` | `1` | the blank row between groups: `1`, or `0` (`false`) for none |
 | `split_corner` | `false` | hang the other panes of a split screen off the first with a `├─` corner |
 | `reorder_workspaces` | `false` | make Herdr's workspace indices follow Radar's activity order |
 | `fleet_view` | `false` | the fleet view: a `fleet` order, needs-you first, and a badge word per row, from a fleet manager's `hm_fleet` token (below) |
+| `machine_name` | the host name | with `fleet_view`: the name this machine's rows sort under in a window attached to several machines (below) |
 | `show_tab` | `false` | tab number in front of the title |
 | `trim_group_prefix` | `true` | drop the workspace name from a title when the header above already shows it |
 | `worktree_mark` | `U+F418` | the mark on a worktree header, needs a Nerd Font; empty for none |
@@ -281,16 +282,24 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
 `<rank>|<kind>[|<note>]`, where kind is `ask`, `owner`, `tray` (note: how many), `idle`, `role` or
 `test`. With `fleet_view = true` the plugin turns that, and its own live state, into:
 
-- **an order**, `fleet`: ask (a plain-text ask, or any Herdr dialog) · owner · tray · working ·
-  idle · role · test, then by activity. `prefix+a` flips `fleet ↔ active`; the cycle is
-  `fleet → active → recent → off`.
+- **an order**, `fleet`, that keeps the groups of `active`: a group (a workspace, with its
+  worktrees) is placed by its most urgent row — ask (a plain-text ask, or any Herdr dialog) ·
+  owner · tray · working · idle · role · test — then by activity. Inside a group the
+  workspace's first pane leads and the rest follow the same way. `prefix+a` flips
+  `fleet ↔ active`; the cycle is `fleet → active → recent → off`.
+- **a tree inside a workspace**: in `fleet` and `active`, the other panes of a workspace hang
+  off its first row with `├─` / `└─` — the manager's workspace reads as the manager with its
+  builder, executor and dispatcher under it.
+- **machines kept apart**: in a window attached to other machines, every order sorts this
+  machine's rows first, then each other machine by `machine_name`, so a machine's groups stay
+  together under their headers. Each pane carries `machine_key` and `on_<machine_name>`.
 - **a badge word** in front of the logo: `ask` in the blocked red, `owner` in the unknown violet,
   `tray 3`, `idle 2h` (the age is the plugin's own, so it stays current between the manager's
   writes), `role`, `test`.
 
 Live state wins over the token: a pane working now reads as working, a dialog as `ask`, whatever
-the manager last wrote. The plugin reads `hm_fleet` and writes only its own `fleet_rank` and
-`fleet_badge`. Turning the setting on or off from the popup restarts the daemon, which rewrites
+the manager last wrote. The plugin reads `hm_fleet` and writes only its own `fleet_rank`,
+`fleet_badge`, `fleet_ws_key`, `fleet_row_key`, `machine_key` and `on_<machine_name>`. Turning the setting on or off from the popup restarts the daemon, which rewrites
 the sidebar block with or without the badge cell.
 
 `node tools/fleet-mock.js` prints a mock of the panel from fixtures, without a Herdr server.
