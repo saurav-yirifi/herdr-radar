@@ -297,6 +297,10 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
 - **a machine header**: the first row of each machine's block carries `machine_label` on a row
   of its own, and every group under it sits one level in, so a window attached to two machines
   reads as two named blocks.
+- **the owner's glance**: a row under the title that shows the manager's `fleet_owner` token,
+  in the blocked red — what waits on the owner, e.g. `you: 52 · oldest 83h`. The manager's
+  heartbeat writes it on its own pane only (`--source herdr-manager.owner`, a 2 h TTL), so the row
+  is empty and collapses everywhere else. The plugin never writes or clears it.
 - **a badge word** in front of the logo: `ask` in the blocked red, `owner` in the unknown violet,
   `tray 3`, `idle 2h` (the age is the plugin's own, so it stays current between the manager's
   writes), `role`, `test`.
