@@ -236,6 +236,7 @@ the config file and restarts the daemon.
 | `group_gap` | `true` | a blank row between groups |
 | `split_corner` | `false` | hang the other panes of a split screen off the first with a `├─` corner |
 | `reorder_workspaces` | `false` | make Herdr's workspace indices follow Radar's activity order |
+| `fleet_view` | `false` | the fleet view: a `fleet` order, needs-you first, and a badge word per row, from a fleet manager's `hm_fleet` token (below) |
 | `show_tab` | `false` | tab number in front of the title |
 | `trim_group_prefix` | `true` | drop the workspace name from a title when the header above already shows it |
 | `worktree_mark` | `U+F418` | the mark on a worktree header, needs a Nerd Font; empty for none |
@@ -263,6 +264,36 @@ The first two are live state; the rest live in
 `$(herdr plugin config-dir hhdebb.herdr-radar)/config.toml` and can be edited by hand —
 then `state-stop` and `state-start`. The file appears the first time the popup saves; before
 that, create it with the keys above (booleans unquoted: `group_gap = false`).
+
+## Fleet view (herdr-manager)
+
+Off by default; with `fleet_view = false` the plugin behaves exactly as without this section.
+For a fleet of long-running agents driven by a manager
+([herdr-manager](https://github.com/saurav-yirifi/sb-herdr-manager)), the manager knows things
+about a pane that nothing on the pane says: the session ended its turn on a plain-text question,
+its ticket waits on the owner, its lane has approved work nobody started, it is a service rather
+than work. It publishes them as one pane token:
+
+```sh
+herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|owner|YIR-489' --ttl-ms 7200000
+```
+
+`<rank>|<kind>[|<note>]`, where kind is `ask`, `owner`, `tray` (note: how many), `idle`, `role` or
+`test`. With `fleet_view = true` the plugin turns that, and its own live state, into:
+
+- **an order**, `fleet`: ask (a plain-text ask, or any Herdr dialog) · owner · tray · working ·
+  idle · role · test, then by activity. `prefix+a` flips `fleet ↔ active`; the cycle is
+  `fleet → active → recent → off`.
+- **a badge word** in front of the logo: `ask` in the blocked red, `owner` in the unknown violet,
+  `tray 3`, `idle 2h` (the age is the plugin's own, so it stays current between the manager's
+  writes), `role`, `test`.
+
+Live state wins over the token: a pane working now reads as working, a dialog as `ask`, whatever
+the manager last wrote. The plugin reads `hm_fleet` and writes only its own `fleet_rank` and
+`fleet_badge`. Turning the setting on or off from the popup restarts the daemon, which rewrites
+the sidebar block with or without the badge cell.
+
+`node tools/fleet-mock.js` prints a mock of the panel from fixtures, without a Herdr server.
 
 ## Troubleshooting
 
