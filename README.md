@@ -310,10 +310,14 @@ the sidebar block with or without the badge cell.
 
 **Upgrading the fork in place** (a herdr-lazy pin bump, a reinstall): `state-start` alone does
 not rewrite the sidebar block. The first-start setup is stamped in the plugin's config dir, which
-a reinstall keeps, so a new row (YIR-657's `$fleet_machine`) never reaches `config.toml`. End
-every upgrade with `configure`:
+a reinstall keeps, so a new row (YIR-657's `$fleet_machine`) never reaches `config.toml`. And
+`state-stop` returns before the old animator exits: a `state-start` chained straight after it
+left the OLD code running on two machines for 10 minutes. So stop, wait for the old process to
+be gone, start, then `configure`:
 
 ```bash
+herdr plugin action invoke hhdebb.herdr-radar.state-stop
+while pgrep -f agent-state.js >/dev/null; do sleep 1; done   # the old animator has exited
 herdr plugin action invoke hhdebb.herdr-radar.state-start
 herdr plugin action invoke hhdebb.herdr-radar.configure
 grep -c fleet_machine ~/.config/herdr/config.toml   # non-zero: the new block is written
