@@ -308,6 +308,19 @@ the sidebar block with or without the badge cell.
 
 `node tools/fleet-mock.js` prints a mock of the panel from fixtures, without a Herdr server.
 
+**Upgrading the fork in place** (a herdr-lazy pin bump, a reinstall): `state-start` alone does
+not rewrite the sidebar block. The first-start setup is stamped in the plugin's config dir, which
+a reinstall keeps, so a new row (YIR-657's `$fleet_machine`) never reaches `config.toml`. End
+every upgrade with `configure`:
+
+```bash
+herdr plugin action invoke hhdebb.herdr-radar.state-start
+herdr plugin action invoke hhdebb.herdr-radar.configure
+grep -c fleet_machine ~/.config/herdr/config.toml   # non-zero: the new block is written
+```
+
+`herdr plugin uninstall` takes no `-y`. Measured on mini-1, mac-1 and mac-2, 2026-09-27.
+
 ## Troubleshooting
 
 Start with `herdr plugin log list --plugin hhdebb.herdr-radar --limit 20`: every plugin command
