@@ -138,10 +138,20 @@ test("with the fleet view on, the badge is one cell and every row stays within H
   const machine = on.match(/\[\{ token = "\$fleet_machine"[^\n]*?\}\], /g) ?? [];
   assert.ok(machine.length > 0, 'no machine row in the block');
   assert.equal(new Set(machine).size, 1, 'one machine row, the same on every entry');
+  // The owner's glance (YIR-687) is its own row after the title row, one cell.
+  const owner = on.match(/\[\{ token = "\$fleet_owner"[^\n]*?\}\], /g) ?? [];
+  assert.ok(owner.length > 0, 'no owner row in the block');
+  assert.equal(new Set(owner).size, 1, 'one owner row, the same on every entry');
+  const agentRow = on.split('\n').find((l) => l.startsWith('rows = ['));
+  assert.ok(
+    agentRow.indexOf(owner[0]) > agentRow.indexOf('$title_unknown'),
+    'the owner row comes after the title row',
+  );
+  assert.ok(agentRow.indexOf(owner[0]) < agentRow.indexOf('["$gap"]'), 'and before the gap');
   assert.equal(
-    on.split(cells[0]).join('').split(machine[0]).join(''),
+    on.split(cells[0]).join('').split(machine[0]).join('').split(owner[0]).join(''),
     off,
-    'the badge cell and the machine row are the only differences',
+    'the badge cell, the machine row and the owner row are the only differences',
   );
   // sidebarBlock throws when a row passes the limit; this is the count it checks.
   const count = (block, row) => {
