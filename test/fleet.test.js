@@ -87,10 +87,10 @@ test('the next change of an idle badge is when its word would change', () => {
   assert.equal(fleet.age(90 * MIN + fleet.nextAgeChange(90 * MIN)), '2h');
 });
 
-test('the fleet order sorts on the rank, ascending, then on activity', () => {
+test('the fleet order sorts on its workspace key, then its row key, both ascending', () => {
   assert.deepEqual(view.SORTS.fleet.sort, [
-    { field: { token: 'fleet_rank' }, order: 'asc' },
-    { field: { token: 'sort_key' }, order: 'desc' },
+    { field: { token: 'fleet_ws_key' }, order: 'asc' },
+    { field: { token: 'fleet_row_key' }, order: 'asc' },
   ]);
 });
 
@@ -161,9 +161,11 @@ test('the frame writes the rank and badge once, and again only when they change'
   await run('idle');
   await run('idle');
   await run('working');
+  const machine = { machine_key: config.machineKey, [config.machineToken]: '1' };
+  const none = { fleet_ws_key: null, fleet_row_key: null };
   assert.deepEqual(writes, [
-    ['w5:p1', { fleet_rank: '2', fleet_badge: 'owner' }],
-    ['w5:p1', { fleet_rank: '4', fleet_badge: null }],
+    ['w5:p1', { fleet_rank: '2', fleet_badge: 'owner', ...none, ...machine }],
+    ['w5:p1', { fleet_rank: '4', fleet_badge: null, ...none, ...machine }],
   ]);
 });
 
