@@ -134,13 +134,6 @@ test("with the fleet view on, the badge is one cell and every row stays within H
   const cells = on.match(/\{ token = "\$fleet_badge"[^\n]*?\] \}, /g) ?? [];
   assert.ok(cells.length > 0, 'no badge cell in the block');
   assert.equal(new Set(cells).size, 1, 'one badge cell, the same on every row');
-  // The machine tag (2026-09-28): one blue cell in front of the badge on every row.
-  const host = on.match(/\{ token = "\$fleet_host"[^\n]*?\}, /g) ?? [];
-  assert.ok(host.length > 0, 'no machine tag in the block');
-  assert.equal(new Set(host).size, 1, 'one machine tag, the same on every row');
-  assert.ok(host[0].includes('bold = true'), 'the tag is bold');
-  const row = on.split('\n').find((l) => l.startsWith('rows = ['));
-  assert.ok(row.indexOf(host[0]) < row.indexOf(cells[0]), 'the tag comes before the badge');
   // The owner's glance (YIR-687) is its own row after the title row, one cell.
   const owner = on.match(/\[\{ token = "\$fleet_owner"[^\n]*?\}\], /g) ?? [];
   assert.ok(owner.length > 0, 'no owner row in the block');
@@ -149,16 +142,16 @@ test("with the fleet view on, the badge is one cell and every row stays within H
   assert.ok(agentRow.indexOf(owner[0]) > agentRow.indexOf('$title_unknown'), 'the owner row comes after the title row');
   assert.ok(agentRow.indexOf(owner[0]) < agentRow.indexOf('["$gap"]'), 'and before the gap');
   assert.equal(
-    on.split(host[0]).join('').split(cells[0]).join('').split(owner[0]).join(''),
+    on.split(cells[0]).join('').split(owner[0]).join(''),
     off,
-    'the machine tag, the badge cell and the owner row are the only differences',
+    'the badge cell and the owner row are the only differences',
   );
   // sidebarBlock throws when a row passes the limit; this is the count it checks.
   const count = (block) => {
     const row = block.split('\n').find((line) => line.startsWith('rows = ['));
     return (row.split('], [')[2].match(/token = "/g) ?? []).length;
   };
-  assert.equal(count(on), count(off) + 2);
+  assert.equal(count(on), count(off) + 1);
   assert.ok(count(on) <= 16, `${count(on)} tokens on the agent row`);
 });
 
@@ -179,7 +172,7 @@ test('the frame writes the rank and badge once, and again only when they change'
   await run('idle');
   await run('idle');
   await run('working');
-  const none = { fleet_ws_key: null, fleet_row_key: null, fleet_host: config.machineLabel };
+  const none = { fleet_ws_key: null, fleet_row_key: null };
   assert.deepEqual(writes, [
     ['w5:p1', { fleet_rank: '2', fleet_badge: 'owner', ...none }],
     ['w5:p1', { fleet_rank: '4', fleet_badge: null, ...none }],
