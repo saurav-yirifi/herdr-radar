@@ -2,7 +2,8 @@
 
 // The fleet view's groups (YIR-551 parts 2-5): the `fleet` order keeps the
 // workspace groups of `grouped`, a workspace of several panes draws as a tree,
-// a window attached to several machines keeps each machine's rows together,
+// a window attached to several machines ranks them together without mixing
+// two machines' same-id workspaces,
 // and the spacer between groups is one row or none.
 
 const test = require('node:test');

@@ -321,7 +321,8 @@ herdr plugin action invoke hhdebb.herdr-radar.state-stop
 while pgrep -f agent-state.js >/dev/null; do sleep 1; done   # the old animator has exited
 herdr plugin action invoke hhdebb.herdr-radar.state-start
 herdr plugin action invoke hhdebb.herdr-radar.configure
-grep -c fleet_machine ~/.config/herdr/config.toml   # 0: the new block is written
+grep -c fleet_owner ~/.config/herdr/config.toml     # non-zero: the fleet block is written
+grep -c fleet_machine ~/.config/herdr/config.toml   # 0: and it is this version's
 ```
 
 `herdr plugin uninstall` takes no `-y`. Measured on mini-1, mac-1 and mac-2, 2026-09-27.

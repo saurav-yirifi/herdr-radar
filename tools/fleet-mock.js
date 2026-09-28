@@ -133,7 +133,7 @@ function herdrSort(list, sort) {
 
 for (const [label, machine] of [
   ['without the machine in the keys', () => ''],
-  ['the machine after each id', (r) => `@${r.m}`],
+  ['the machine after each id', (r) => `-${r.m}`],
 ]) {
   const rows = WINDOW.map((r) => ({ ...r, fleet_ws_key: `${r.key}-${r.id}${machine(r)}`, fleet_row_key: r.row }));
   console.log(`MOCK - a window on the mini attached to MacBook 1, ${label}`);
