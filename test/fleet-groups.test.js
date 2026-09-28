@@ -197,3 +197,31 @@ test('group_gap reads 0 or false as no spacer, anything else as one row; machine
     'on_sauravs_mac_mini',
   ]);
 });
+
+test("with the fleet view on, a family's top header names its machine, a worktree under it does not", async (t) => {
+  t.mock.property(config, 'fleetView', true);
+  t.mock.property(config, 'machineLabel', 'mini-1');
+  const writes = new Map();
+  t.mock.method(herdr, 'reportMetadataAsync', async (pane, src, tokens) => {
+    writes.set(pane, tokens);
+    return true;
+  });
+  const entries = [
+    { pane: 'w1:p1', workspace: 'w1' },
+    { pane: 'w2:p1', workspace: 'w2' },
+    { pane: 'w3:p1', workspace: 'w3' },
+  ];
+  const labels = new Map([
+    ['w1', 'sb-herdr-manager'],
+    ['w2', 'feat-x'],
+    ['w3', 'vedtara-app'],
+  ]);
+  await state.writeGroups('src', entries, labels, new Set(), {
+    parentOf: new Map([['w2', 'w1']]),
+    orphanRepo: new Map([['w3', 'vedtara-astro']]),
+  });
+  assert.equal(writes.get('w1:p1').group, 'sb-herdr-manager (mini-1)');
+  assert.ok(!writes.get('w2:p1').group.includes('mini-1'), 'a worktree under a named header stays bare');
+  assert.equal(writes.get('w3:p1').group_parent, 'vedtara-astro (mini-1)');
+  assert.ok(!writes.get('w3:p1').group.includes('mini-1'), 'an orphan under its named repo row stays bare');
+});
