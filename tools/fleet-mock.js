@@ -7,9 +7,8 @@
 // headers and the tree inside a workspace (lib/state.js) -> one line per row,
 // the badge coloured by the same rules the sidebar block writes. Then a window
 // attached to two machines, sorted by view.sortFor, and the spacer at
-// group_gap 1 and 0, with the machine header over each machine's block. It
-// is not Herdr drawing the panel; the real one comes from installing the
-// plugin. `--plain` drops the colour.
+// group_gap 1 and 0. It is not Herdr drawing the panel; the real one comes
+// from installing the plugin. `--plain` drops the colour.
 //
 //   node tools/fleet-mock.js [--plain]
 
@@ -30,7 +29,15 @@ const plain = process.argv.includes('--plain');
 // recent). sb-herdr-manager is the manager's workspace: the manager, the
 // trio's builder, and two role panes.
 const PANES = [
-  { ws: 'sb-herdr-manager', title: 'herdr-fleet-manager', display: 'idle', token: null, idle: 4 * MIN, sort: 88, owner: 'you: 52 · oldest 83h' },
+  {
+    ws: 'sb-herdr-manager',
+    title: 'herdr-fleet-manager',
+    display: 'idle',
+    token: null,
+    idle: 4 * MIN,
+    sort: 88,
+    owner: 'you: 52 · oldest 83h',
+  },
   { ws: 'sb-herdr-manager', title: 'builder: YIR-551', display: 'working', token: null, idle: 0, sort: 96 },
   { ws: 'sb-herdr-manager', title: 'executor', display: 'idle', token: '8|role|executor', idle: 5 * MIN, sort: 50 },
   { ws: 'sb-herdr-manager', title: 'dispatcher', display: 'idle', token: '8|role|dispatcher', idle: 2 * MIN, sort: 60 },
@@ -87,10 +94,7 @@ const shown = Frame.prototype.fleetOrder(
 const { heads, tails } = state.groupBoundaries(shown);
 const tree = state.treeCorners(shown);
 
-// The machine header (YIR-657) heads the block; every group sits under it.
-config.machineLabel = 'mini-1';
 console.log('MOCK - fleet view (fleet_view = true), order: fleet');
-console.log(paint(config.machineLabel, ink.idleStale));
 for (const row of shown) {
   if (heads.has(row.pane)) console.log(`  ${paint(row.ws, ink.subtle)}`);
   const colour = COLOURS.find(([word]) => row.badge?.includes(word))?.[1];
@@ -104,22 +108,15 @@ for (const row of shown) {
 
 // A window on the mini attached to MacBook 1: each machine's rows carry the
 // keys ITS radar wrote, and workspace ids repeat across machines - both have a
-// w4 - so without a machine level MacBook 1's w4 row sorts into the middle of
-// the mini's (the owner's MacBook 2 window, 2026-09-27).
-const LABELS = { mini: 'mini-1', macbook: 'mac-1' };
+// w4. The keys name the machine after each id, so the two w4 stay apart while
+// every machine's groups rank together, the machine on Herdr's own row chip.
 const WINDOW = [
   { m: 'mini', id: 'w4', ws: 'sb-herdr-manager', title: 'herdr-fleet-manager', key: '4-a', row: '0-4' },
   { m: 'macbook', id: 'w4', ws: 'yirifi-ops-refinery', title: 'ops-refinery', key: '4-a', row: '0-5' },
   { m: 'mini', id: 'w4', ws: 'sb-herdr-manager', title: 'builder', key: '4-a', row: '1-4' },
   { m: 'mini', id: 'w9', ws: 'billing', title: 'nothing queued', key: '5-b', row: '0-5' },
   { m: 'macbook', id: 'w2', ws: 'devops', title: 'which env file?', key: '1-c', row: '0-1' },
-].map((r) => ({
-  ...r,
-  machine_key: r.m,
-  [`on_${r.m}`]: '1',
-  fleet_ws_key: `${r.key}-${r.id}`,
-  fleet_row_key: r.row,
-}));
+];
 
 function herdrSort(list, sort) {
   return [...list].sort((a, b) => {
@@ -134,20 +131,13 @@ function herdrSort(list, sort) {
   });
 }
 
-config.machineKey = 'mini';
-for (const [label, sort] of [
-  ['without a machine level', view.SORTS.fleet.sort],
-  ['machine first (this window: mini)', view.sortFor('fleet')],
+for (const [label, machine] of [
+  ['without the machine in the keys', () => ''],
+  ['the machine after each id', (r) => `-${r.m}`],
 ]) {
+  const rows = WINDOW.map((r) => ({ ...r, fleet_ws_key: `${r.key}-${r.id}${machine(r)}`, fleet_row_key: r.row }));
   console.log(`MOCK - a window on the mini attached to MacBook 1, ${label}`);
-  // Each machine's radar writes the header on its own first row in this order,
-  // so it heads that machine's block (fleet_machine, lib/state.js writeGroups).
-  let machine = null;
-  for (const r of herdrSort(WINDOW, sort)) {
-    if (r.m !== machine) console.log(paint(LABELS[r.m], ink.idleStale));
-    machine = r.m;
-    console.log(`  ${r.ws.padEnd(20)} ${r.title}`);
-  }
+  for (const r of herdrSort(rows, view.sortFor('fleet'))) console.log(`  [${r.m}] ${r.ws.padEnd(20)} ${r.title}`);
   console.log('');
 }
 
