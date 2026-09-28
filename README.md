@@ -237,8 +237,7 @@ the config file and restarts the daemon.
 | `split_corner` | `false` | hang the other panes of a split screen off the first with a `├─` corner |
 | `reorder_workspaces` | `false` | make Herdr's workspace indices follow Radar's activity order |
 | `fleet_view` | `false` | the fleet view: a `fleet` order, needs-you first, and a badge word per row, from a fleet manager's `hm_fleet` token (below) |
-| `machine_name` | the host name | with `fleet_view`: the name this machine's rows sort under in a window attached to several machines (below) |
-| `machine_label` | `machine_name`, else the host name | with `fleet_view`: the header above this machine's groups, e.g. `mini-1` (below) |
+| `machine_name` | the host name | with `fleet_view`: the name in this machine's order keys, so a window attached to several machines keeps each machine's workspaces apart (below) |
 | `show_tab` | `false` | tab number in front of the title |
 | `trim_group_prefix` | `true` | drop the workspace name from a title when the header above already shows it |
 | `worktree_mark` | `U+F418` | the mark on a worktree header, needs a Nerd Font; empty for none |
@@ -291,12 +290,10 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
 - **a tree inside a workspace**: in `fleet` and `active`, the other panes of a workspace hang
   off its first row with `├─` / `└─` — the manager's workspace reads as the manager with its
   builder, executor and dispatcher under it.
-- **machines kept apart**: in a window attached to other machines, every order sorts this
-  machine's rows first, then each other machine by `machine_name`, so a machine's groups stay
-  together under their headers. Each pane carries `machine_key` and `on_<machine_name>`.
-- **a machine header**: the first row of each machine's block carries `machine_label` on a row
-  of its own, and every group under it sits one level in, so a window attached to two machines
-  reads as two named blocks.
+- **machines ranked together**: in a window attached to other machines, every machine's groups
+  sort in one list, and Herdr's own chip on a remote row names its machine. The `fleet` keys carry
+  `machine_name` after each workspace id, so two machines' `w4` never interleave. Grouping by
+  machine first made a machine's whole block jump when one of its rows lit up (2026-09-28).
 - **the owner's glance**: a row under the title that shows the manager's `fleet_owner` token,
   in the blocked red — what waits on the owner, e.g. `you: 52 · oldest 83h`. The manager's
   heartbeat writes it on its own pane only (`--source herdr-manager.owner`, a 2 h TTL), so the row
@@ -307,14 +304,14 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
 
 Live state wins over the token: a pane working now reads as working, a dialog as `ask`, whatever
 the manager last wrote. The plugin reads `hm_fleet` and writes only its own `fleet_rank`,
-`fleet_badge`, `fleet_ws_key`, `fleet_row_key`, `machine_key` and `on_<machine_name>`. Turning the setting on or off from the popup restarts the daemon, which rewrites
+`fleet_badge`, `fleet_ws_key` and `fleet_row_key`. Turning the setting on or off from the popup restarts the daemon, which rewrites
 the sidebar block with or without the badge cell.
 
 `node tools/fleet-mock.js` prints a mock of the panel from fixtures, without a Herdr server.
 
 **Upgrading the fork in place** (a herdr-lazy pin bump, a reinstall): `state-start` alone does
 not rewrite the sidebar block. The first-start setup is stamped in the plugin's config dir, which
-a reinstall keeps, so a new row (YIR-657's `$fleet_machine`) never reaches `config.toml`. And
+a reinstall keeps, so a changed row (YIR-657 added `$fleet_machine`, since removed) never reaches `config.toml`. And
 `state-stop` returns before the old animator exits: a `state-start` chained straight after it
 left the OLD code running on two machines for 10 minutes. So stop, wait for the old process to
 be gone, start, then `configure`:
@@ -324,7 +321,7 @@ herdr plugin action invoke hhdebb.herdr-radar.state-stop
 while pgrep -f agent-state.js >/dev/null; do sleep 1; done   # the old animator has exited
 herdr plugin action invoke hhdebb.herdr-radar.state-start
 herdr plugin action invoke hhdebb.herdr-radar.configure
-grep -c fleet_machine ~/.config/herdr/config.toml   # non-zero: the new block is written
+grep -c fleet_machine ~/.config/herdr/config.toml   # 0: the new block is written
 ```
 
 `herdr plugin uninstall` takes no `-y`. Measured on mini-1, mac-1 and mac-2, 2026-09-27.
