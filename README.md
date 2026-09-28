@@ -237,6 +237,7 @@ the config file and restarts the daemon.
 | `split_corner` | `false` | hang the other panes of a split screen off the first with a `├─` corner |
 | `reorder_workspaces` | `false` | make Herdr's workspace indices follow Radar's activity order |
 | `fleet_view` | `false` | the fleet view: a `fleet` order, needs-you first, and a badge word per row, from a fleet manager's `hm_fleet` token (below) |
+| `machine_label` | `machine_name`, else the host name | with `fleet_view`: the blue tag in front of this machine's rows, e.g. `mini-1` (below) |
 | `machine_name` | the host name | with `fleet_view`: the name in this machine's order keys, so a window attached to several machines keeps each machine's workspaces apart (below) |
 | `show_tab` | `false` | tab number in front of the title |
 | `trim_group_prefix` | `true` | drop the workspace name from a title when the header above already shows it |
@@ -294,6 +295,8 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
   sort in one list, and Herdr's own chip on a remote row names its machine. The `fleet` keys carry
   `machine_name` after each workspace id, so two machines' `w4` never interleave. Grouping by
   machine first made a machine's whole block jump when one of its rows lit up (2026-09-28).
+- **a machine tag**: every row starts with its machine's `machine_label` in blue, so a list
+  that mixes machines still says where each session runs.
 - **the owner's glance**: a row under the title that shows the manager's `fleet_owner` token,
   in the blocked red — what waits on the owner, e.g. `you: 52 · oldest 83h`. The manager's
   heartbeat writes it on its own pane only (`--source herdr-manager.owner`, a 2 h TTL), so the row
@@ -304,7 +307,7 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
 
 Live state wins over the token: a pane working now reads as working, a dialog as `ask`, whatever
 the manager last wrote. The plugin reads `hm_fleet` and writes only its own `fleet_rank`,
-`fleet_badge`, `fleet_ws_key` and `fleet_row_key`. Turning the setting on or off from the popup restarts the daemon, which rewrites
+`fleet_badge`, `fleet_ws_key`, `fleet_row_key` and `fleet_host`. Turning the setting on or off from the popup restarts the daemon, which rewrites
 the sidebar block with or without the badge cell.
 
 `node tools/fleet-mock.js` prints a mock of the panel from fixtures, without a Herdr server.
