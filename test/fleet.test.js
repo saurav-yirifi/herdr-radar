@@ -93,6 +93,20 @@ test('with the fleet view on, the tab bar also shows the manager health line; of
   assert.doesNotMatch(managed.block(), /fleet-health/);
 });
 
+test('a fleet-on block from before the role colours and health line is stale, so a start rewrites it', (t) => {
+  withFleet(t, true);
+  const current = managed.block() + managed.sidebarBlock('dark');
+  assert.equal(managed.fleetStale(current, true), false);
+  const older = current.replace(/\{ contains = "manager"[^}]*\},?/, '').replace(/.*fleet-health.*\n/, '');
+  assert.equal(managed.fleetStale(older, true), true);
+  assert.equal(managed.fleetStale(current.replace(/.*fleet-health.*\n/, ''), true), true);
+  config.fleetView = false;
+  const off = managed.block() + managed.sidebarBlock('dark');
+  assert.equal(managed.fleetStale(off, false), false);
+  assert.equal(managed.fleetStale(current, false), true);
+  assert.equal(managed.fleetStale(off, true), true);
+});
+
 test('an unstamped pane ranks by what it is doing, with no badge', () => {
   assert.deepEqual(fleet.view('working', null, 0), { rank: '4', badge: null });
   assert.deepEqual(fleet.view('done', null, 0), { rank: '4', badge: null });
