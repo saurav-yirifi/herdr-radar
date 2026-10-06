@@ -119,8 +119,17 @@ const palette = require('../lib/palette');
 const markColours = new Set([...Object.values(palette.brand), palette.state.none]);
 
 const managed = require('../lib/managed-config');
-for (const [variant, panel] of Object.entries(PANELS)) {
-  const text = managed.sidebarBlock(variant);
+// Scored with the fleet view off and on: the fleet badge brings inks of its
+// own (the role colours) that the default block never writes.
+const fleetConfig = require('../lib/config');
+const fleetWas = fleetConfig.fleetView;
+const blocks = [];
+for (const fleetView of [false, true]) {
+  fleetConfig.fleetView = fleetView;
+  for (const [variant, panel] of Object.entries(PANELS)) blocks.push([variant, panel, managed.sidebarBlock(variant)]);
+}
+fleetConfig.fleetView = fleetWas;
+for (const [variant, panel, text] of blocks) {
   // `dim` asks the terminal to fade an ink by an amount it chooses and we
   // cannot measure. Whatever fade a cell needs belongs in its colour.
   if (/dim = true/.test(text)) {

@@ -42,11 +42,11 @@ test('a malformed token is no token', () => {
 
 test('each kind gets its rank and its word', () => {
   const at = (token, display = 'idle') => fleet.view(display, token, 150 * MIN);
-  assert.deepEqual(at('1|ask'), { rank: '1', badge: 'ask' });
+  assert.deepEqual(at('1|ask'), { rank: '1', badge: 'ask 2h' });
   assert.deepEqual(at('2|owner|YIR-489'), { rank: '2', badge: 'owner' });
   assert.deepEqual(at('3|tray|3'), { rank: '3', badge: 'tray 3' });
   assert.deepEqual(at('5|idle'), { rank: '5', badge: 'idle 2h' });
-  assert.deepEqual(at('8|role|executor'), { rank: '8', badge: 'role' });
+  assert.deepEqual(at('8|role|executor'), { rank: '8', badge: 'executor' });
   assert.deepEqual(at('9|test|w4:p6'), { rank: '9', badge: 'test' });
 });
 
@@ -59,8 +59,38 @@ test('live state outranks the manager: working now is working, a dialog is an as
 });
 
 test('a service stays a service even while it works', () => {
-  assert.deepEqual(fleet.view('working', '8|role|relay', 0), { rank: '8', badge: 'role' });
+  assert.deepEqual(fleet.view('working', '8|role|relay', 0), { rank: '8', badge: 'relay' });
   assert.deepEqual(fleet.view('blocked', '9|test|w4:p6', 0), { rank: '9', badge: 'test' });
+});
+
+test('a role badge names the role; an unnamed or unknown role still reads as a role', () => {
+  assert.deepEqual(fleet.view('idle', '8|role|dispatcher', 0), { rank: '8', badge: 'dispatcher' });
+  assert.deepEqual(fleet.view('idle', '8|role', 0), { rank: '8', badge: 'role' });
+  assert.deepEqual(fleet.view('idle', '8|role|compactor', 0), { rank: '8', badge: 'role' });
+});
+
+test('an ask carries how long it has waited, so a stale one stands out from a fresh one', () => {
+  assert.deepEqual(fleet.view('blocked', null, 5 * MIN), { rank: '1', badge: 'ask' });
+  assert.deepEqual(fleet.view('blocked', null, 25 * MIN), { rank: '1', badge: 'ask 20m' });
+  assert.deepEqual(fleet.view('idle', '1|ask', 3 * 60 * MIN), { rank: '1', badge: 'ask 3h' });
+});
+
+test('with the fleet view on, each role wears its own colour; off, no role rule is written', (t) => {
+  withFleet(t, true);
+  const on = managed.sidebarBlock('dark');
+  for (const role of fleet.ROLES) {
+    assert.match(on, new RegExp(`contains = "${role}", fg = "#[0-9a-f]{6}"`), role);
+  }
+  config.fleetView = false;
+  for (const role of fleet.ROLES) assert.doesNotMatch(managed.sidebarBlock('dark'), new RegExp(`contains = "${role}"`));
+});
+
+test('with the fleet view on, the tab bar also shows the manager health line; off, it does not', (t) => {
+  withFleet(t, true);
+  assert.match(managed.block(), /fleet-health\.txt/);
+  assert.doesNotThrow(() => managed.block());
+  config.fleetView = false;
+  assert.doesNotMatch(managed.block(), /fleet-health/);
 });
 
 test('an unstamped pane ranks by what it is doing, with no badge', () => {
