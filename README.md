@@ -301,14 +301,20 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
   in the blocked red — what waits on the owner, e.g. `you: 52 · oldest 83h`. The manager's
   heartbeat writes it on its own pane only (`--source herdr-manager.owner`, a 2 h TTL), so the row
   is empty and collapses everywhere else. The plugin never writes or clears it.
-- **a badge word** in front of the logo: `ask` in the blocked red, `owner` in the unknown violet,
-  `tray 3`, `idle 2h` (the age is the plugin's own, so it stays current between the manager's
-  writes), `role`, `test`.
+- **a badge word** in front of the logo: `ask` in the blocked red, aged from ten minutes on
+  (`ask 20m`, so a stale ask stands out from a fresh one), `owner` in the unknown violet,
+  `tray 3`, `idle 2h` (the ages are the plugin's own, so they stay current between the manager's
+  writes), `test`. A `role` row names its role — `manager`, `builder`, `dispatcher`, `executor`,
+  `relay` — each in its own colour from the theme's palette; any other role note reads `role`.
+- **the manager's health line** in the tab bar: a first segment that prints
+  `~/.herdr/fleet-health.txt`, which the manager's heartbeat writes (watch, supervisor, who
+  needs the person). No file, no segment.
 
 Live state wins over the token: a pane working now reads as working, a dialog as `ask`, whatever
 the manager last wrote. The plugin reads `hm_fleet` and writes only its own `fleet_rank`,
 `fleet_badge`, `fleet_ws_key` and `fleet_row_key`. Turning the setting on or off from the popup restarts the daemon, which rewrites
-the sidebar block with or without the badge cell.
+the blocks with or without the fleet cells; a start also rewrites a fleet-on block written by an
+older version (one without the role colours or the health segment).
 
 `node tools/fleet-mock.js` prints a mock of the panel from fixtures, without a Herdr server.
 
