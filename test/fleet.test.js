@@ -105,8 +105,10 @@ test('a fleet-on block from before the role colours and health line is stale, so
   assert.equal(managed.fleetStale(current.replace(/, \{ token = "\$ctx_ok"[^}]*\}/g, ''), true), true);
   // and one with the older gauge row of its own (a row that starts at the size)
   assert.equal(managed.fleetStale(current.replace(/, \{ token = "\$ctx_ok"/g, '], [{ token = "$ctx_ok"'), true), true);
-  // and one from before the work row (row 9)
-  assert.equal(managed.fleetStale(current.replace(/\[\{ token = "\$work_ok".*?\}\], /g, ''), true), true);
+  // and one from before the work cells (row 9)
+  assert.equal(managed.fleetStale(current.replace(/, \{ token = "\$work_ok".*?\}\], /g, '], '), true), true);
+  // and one with the work on a row of its own, under the badge's
+  assert.equal(managed.fleetStale(current.replace(/, \{ token = "\$work_ok"/g, '], [{ token = "$work_ok"'), true), true);
   config.fleetView = false;
   const off = managed.block() + managed.sidebarBlock('dark');
   assert.equal(managed.fleetStale(off, false), false);
@@ -177,14 +179,14 @@ test('with the fleet view off, the sidebar block names no fleet token', (t) => {
   }
 });
 
-test("with the fleet view on, the badge is its own row under the title and every row stays within Herdr's 16 tokens", (t) => {
+test("with the fleet view on, the badge and the work share one row under the title and every row stays within Herdr's 16 tokens", (t) => {
   withFleet(t, true);
   const on = managed.sidebarBlock('light');
   config.fleetView = false;
   const off = managed.sidebarBlock('light');
-  // The badge is a row of its own (fleet view 6.7): in front of the title it
-  // pushed the title off a narrow sidebar.
-  const badge = on.match(/\[\{ token = "\$fleet_badge"[^\n]*?\] \}\], /g) ?? [];
+  // The badge is not in the title row (fleet view 6.7): in front of the title
+  // it pushed the title off a narrow sidebar. It opens a row the work shares.
+  const badge = on.match(/\[\{ token = "\$fleet_badge"[^\n]*?"\$work_red"[^\n]*?\}\], /g) ?? [];
   assert.ok(badge.length > 0, 'no badge row in the block');
   assert.equal(new Set(badge).size, 1, 'one badge row, the same on every entry');
   // The owner's glance (YIR-687) is its own row after the title row, one cell.
@@ -208,12 +210,12 @@ test("with the fleet view on, the badge is its own row under the title and every
   assert.deepEqual([fg('ok'), fg('near'), fg('over')],
     [palette.stateFor('light').done, palette.brand.other, palette.stateFor('light').blocked], 'each tier in its own colour');
   assert.match(ctx[0], /"\$ctx_over", fg = "[^"]+", bold = true/, 'over is bold');
-  // The lane's work (row 9): ticket, PR and CI, three CI tiers, between the gauge and the owner.
-  const work = on.match(/\[\{ token = "\$work_ok"[^\n]*?"\$work_wait"[^\n]*?"\$work_red"[^\n]*?\}\], /g) ?? [];
-  assert.ok(work.length > 0, 'no work row in the block');
-  assert.equal(new Set(work).size, 1, 'one work row, the same on every entry');
-  assert.ok(agentRow.indexOf(work[0]) > agentRow.indexOf(badge[0]), 'the work row after the badge row');
-  assert.ok(agentRow.indexOf(owner[0]) > agentRow.indexOf(work[0]), 'the owner row after the work row');
+  // The lane's work (row 9): ticket, PR and CI, three CI tiers, on the badge's row after the
+  // badge (the person, 2026-10-07: a row each was "wasting lines").
+  const work = badge[0].match(/, \{ token = "\$work_ok"[^\n]*?"\$work_wait"[^\n]*?"\$work_red"[^\n]*?\}/g) ?? [];
+  assert.equal(work.length, 1, 'no work cells after the badge');
+  assert.ok(badge[0].indexOf('$fleet_badge') < badge[0].indexOf('$work_ok'), 'the badge before the work');
+  assert.ok(agentRow.indexOf(owner[0]) > agentRow.indexOf(badge[0]), 'the owner row after the badge and work row');
   const wfg = (tier) => work[0].match(new RegExp(`"\\$work_${tier}", fg = "([^"]+)"`))[1];
   assert.deepEqual([wfg('ok'), wfg('wait'), wfg('red')],
     [palette.stateFor('light').idleNormal, palette.brand.other, palette.stateFor('light').blocked], 'each CI tier in its own colour');
@@ -233,9 +235,9 @@ test("with the fleet view on, the badge is its own row under the title and every
   assert.ok(tinted('revoxy (mac-1)') && tinted('SERVICES · mac-2'), 'a Mac is not tinted');
   assert.ok(!tinted('mac-notes (x1pro-1)') && !tinted('SERVICES · x1pro-1'), 'x1pro-1 is tinted');
   assert.equal(
-    on.split(badge[0]).join('').split(ctx[0]).join('').split(work[0]).join('').split(owner[0]).join('').replace(roleTitle, '').replace(hold, '').replace(tint, ''),
+    on.split(badge[0]).join('').split(ctx[0]).join('').split(owner[0]).join('').replace(roleTitle, '').replace(hold, '').replace(tint, ''),
     off,
-    'the badge row, the context cells, the work row, the owner row, the role title, the hold row and the machine tint are the only differences',
+    'the badge and work row, the context cells, the owner row, the role title, the hold row and the machine tint are the only differences',
   );
   // sidebarBlock throws when a row passes the limit; this is the count it checks.
   const count = (block) => {
