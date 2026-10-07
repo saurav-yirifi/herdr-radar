@@ -199,6 +199,7 @@ test("with the fleet view on, the badge is its own row under the title and every
   const fg = (tier) => ctx[0].match(new RegExp(`"\\$ctx_${tier}", fg = "([^"]+)"`))[1];
   assert.deepEqual([fg('ok'), fg('near'), fg('over')],
     [palette.stateFor('light').done, palette.brand.other, palette.stateFor('light').blocked], 'each tier in its own colour');
+  assert.match(ctx[0], /"\$ctx_over", fg = "[^"]+", bold = true/, 'over is bold');
   assert.ok(agentRow.indexOf(owner[0]) < agentRow.indexOf('["$gap"]'), 'and before the gap');
   // and a role pane's working title (title_role), one per vendor row
   const roleTitle = /, \{ token = "\$title_role"[^\]]*\] \}/g;
