@@ -296,7 +296,7 @@ test('a rollup that moves rewrites only the head rows of its family; an unchange
     ['w1', 'sb-herdr-manager'],
     ['w3', 'vedtara-app'],
   ]);
-  const keys = { parentOf: new Map(), orphanRepo: new Map(), familyOf: (ws) => ws };
+  const keys = { parentOf: new Map(), orphanRepo: new Map(), familyOf: (ws) => ws, services: new Set() };
   const frame = new Frame('test');
   const run = (w1) =>
     frame.groupJobs(entries, entries, 'fleet', true, new Map([['w1', w1], ['w3', [{ display: 'done' }]]]), labels, keys, 0, []);
@@ -312,4 +312,87 @@ test('a rollup that moves rewrites only the head rows of its family; an unchange
     [['w1:p1', 'sb-herdr-manager (x1pro-1)  ◐2']],
     "only w1's head row is rewritten",
   );
+});
+
+test("the manager's workspace is the services group; a workspace without the manager is not", () => {
+  const found = fleet.services([
+    { pane: 'w5:p1', workspace: 'w5', fleet: '8|role|manager' },
+    { pane: 'w5:p2', workspace: 'w5', fleet: null },
+    { pane: 'w7:p1', workspace: 'w7', fleet: '8|role|executor' },
+    { pane: 'w8:p1', workspace: 'w8', fleet: '2|owner|YIR-1' },
+  ]);
+  assert.deepEqual([...found], ['w5']);
+});
+
+test("the services group's lanes leave its tree for their repo's header, and the group sorts below all work", () => {
+  const frame = new Frame('test');
+  const entries = [
+    { pane: 'w5:p1', workspace: 'w5', tab: 'w5:t1', fleet: '8|role|manager' },
+    { pane: 'w5:p2', workspace: 'w5', tab: 'w5:t1', fleet: null },
+    { pane: 'wQ:p1', workspace: 'wQ', tab: 'wQ:t1', fleet: '2|owner|YIR-1609' },
+    { pane: 'w9:p1', workspace: 'w9', tab: 'w9:t1', fleet: '5|idle' },
+  ];
+  const parents = new Map([['wQ', 'w5']]);
+  const worktrees = new Map([['wQ', 'sb-herdr-manager']]);
+  const keys = frame.sortKeys(entries, parents, worktrees, fleet.services(entries));
+  assert.deepEqual([...keys.parentOf], [], 'the lane no longer hangs off the services group');
+  assert.deepEqual([...keys.orphanRepo], [['wQ', 'sb-herdr-manager']], 'it hangs under its own repo instead');
+  assert.equal(keys.familyOf('wQ'), 'repo:sb-herdr-manager');
+  // As render ranks them: w5:p2 carries no stamp, and idle unstamped is work's rank.
+  const rows = entries.map((entry) => ({
+    pane: entry.pane,
+    workspace: entry.workspace,
+    rank: fleet.orderRank('idle', entry.fleet, keys.services.has(entry.workspace)),
+    minute: minute(9),
+  }));
+  const shown = frame.fleetOrder(entries, fleet.orderKeys(rows, keys.familyOf));
+  assert.deepEqual(
+    shown.map((entry) => entry.pane),
+    ['wQ:p1', 'w9:p1', 'w5:p1', 'w5:p2'],
+    'needs-you lane first, idle work next, services last',
+  );
+});
+
+test('a services workspace that is itself a worktree hangs under nothing: no parent, no orphan repo', () => {
+  const frame = new Frame('test');
+  const entries = [
+    { pane: 'wP:p1', workspace: 'wP', tab: 'wP:t1', fleet: '5|idle' },
+    { pane: 'w5:p1', workspace: 'w5', tab: 'w5:t1', fleet: '8|role|manager' },
+  ];
+  const worktrees = new Map([['w5', 'sb-herdr-manager']]);
+  const under = frame.sortKeys(entries, new Map([['w5', 'wP']]), worktrees, fleet.services(entries));
+  assert.deepEqual([...under.parentOf], [], 'not under its checkout');
+  assert.equal(under.familyOf('w5'), 'w5', 'a family of its own');
+  const alone = frame.sortKeys(entries.slice(1), new Map(), worktrees, fleet.services(entries));
+  assert.deepEqual([...alone.orphanRepo], [], 'no synthesised repo header over it either');
+});
+
+test('the services head reads SERVICES with its machine and rollup; its old lane sits under its repo', async (t) => {
+  t.mock.property(config, 'fleetView', true);
+  t.mock.property(config, 'machineLabel', 'x1pro-1');
+  const writes = new Map();
+  t.mock.method(herdr, 'reportMetadataAsync', async (pane, src, tokens) => {
+    writes.set(pane, tokens);
+    return true;
+  });
+  const entries = [
+    { pane: 'wQ:p1', workspace: 'wQ' },
+    { pane: 'w5:p1', workspace: 'w5' },
+    { pane: 'w5:p2', workspace: 'w5' },
+  ];
+  const orphanRepo = new Map([['wQ', 'sb-herdr-manager']]);
+  const familyOf = (ws) => (orphanRepo.has(ws) ? `repo:${orphanRepo.get(ws)}` : ws);
+  await state.writeGroups('src', entries, new Map([['w5', 'manager'], ['wQ', 'herdr-tracker-cutover']]), new Set(), {
+    parentOf: new Map(),
+    orphanRepo,
+    familyOf,
+    services: new Set(['w5']),
+    rollups: new Map([
+      ['w5', '◐1 ○1'],
+      ['repo:sb-herdr-manager', '■1'],
+    ]),
+  });
+  assert.equal(writes.get('w5:p1').group, 'SERVICES · x1pro-1  ◐1 ○1');
+  assert.equal(writes.get('wQ:p1').group_parent, 'sb-herdr-manager (x1pro-1)  ■1');
+  assert.equal(writes.get('w5:p2').group, null, 'a member row carries no header');
 });
