@@ -191,10 +191,13 @@ test("with the fleet view on, the badge is its own row under the title and every
   assert.ok(agentRow.indexOf(owner[0]) < agentRow.indexOf('["$gap"]'), 'and before the gap');
   // and a role pane's working title (title_role), one per vendor row
   const roleTitle = /, \{ token = "\$title_role"[^\]]*\] \}/g;
+  // and the Spaces panel's third row, the lane's hold (fleet view row 10)
+  const hold = /,\n {2}\[\n {4}\{ token = "\$lane_hold"[^\n]*\}\n {2}\]/;
+  assert.match(on.slice(on.indexOf('[ui.sidebar.spaces]')), hold, 'no hold row in the Spaces block');
   assert.equal(
-    on.split(badge[0]).join('').split(owner[0]).join('').replace(roleTitle, ''),
+    on.split(badge[0]).join('').split(owner[0]).join('').replace(roleTitle, '').replace(hold, ''),
     off,
-    'the badge row, the owner row and the role title are the only differences',
+    'the badge row, the owner row, the role title and the hold row are the only differences',
   );
   // sidebarBlock throws when a row passes the limit; this is the count it checks.
   const count = (block) => {
