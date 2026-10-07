@@ -194,10 +194,14 @@ test("with the fleet view on, the badge is its own row under the title and every
   // and the Spaces panel's third row, the lane's hold (fleet view row 10)
   const hold = /,\n {2}\[\n {4}\{ token = "\$lane_hold"[^\n]*\}\n {2}\]/;
   assert.match(on.slice(on.indexOf('[ui.sidebar.spaces]')), hold, 'no hold row in the Spaces block');
-  assert.match(on, /\$lane_drift/, 'no drift cell on the hold row');
+  assert.match(on, /\$lane_hold", [^\n]*\}, \{ token = "\$lane_drift"/, 'no drift cell beside the hold');
   // and the machine tint on every group header (row 7): mini-1 amber, the Macs violet
-  const tint = /, rules = \[\{ contains = "mini-1", fg = "[^"]+" \}, \{ contains = "mac-", fg = "[^"]+" \}\]/g;
-  assert.ok((on.match(tint) ?? []).length > 0, 'no machine tint on the group header');
+  const tint = /, rules = \[(\{ contains = "[^"]+", fg = "[^"]+" \}(, )?){4}\]/g;
+  const groupCell = on.match(/\{ token = "\$group", [^\n]*?\] \}/)?.[0] ?? '';
+  const tinted = (header) => [...groupCell.matchAll(/contains = "([^"]+)"/g)].some(([, c]) => header.includes(c));
+  assert.ok(tinted('sb-herdr-manager (mini-1)') && tinted('SERVICES · mini-1'), 'mini-1 is not tinted');
+  assert.ok(tinted('revoxy (mac-1)') && tinted('SERVICES · mac-2'), 'a Mac is not tinted');
+  assert.ok(!tinted('mac-notes (x1pro-1)') && !tinted('SERVICES · x1pro-1'), 'x1pro-1 is tinted');
   assert.equal(
     on.split(badge[0]).join('').split(owner[0]).join('').replace(roleTitle, '').replace(hold, '').replace(tint, ''),
     off,
