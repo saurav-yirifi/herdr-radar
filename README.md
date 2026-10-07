@@ -299,6 +299,10 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
   machine first made a machine's whole block jump when one of its rows lit up (2026-09-28).
 - **a machine name on each project**: a family's top header reads `name (machine_label)`, e.g.
   `sb-herdr-manager (mini-1)`, so a list that mixes machines still says where each project runs.
+- **a context gauge**: a row under the badge that shows the fleet supervisor's pane token, a
+  10-cell bar on a 400k gauge plus the size, e.g. `▓▓▓░░░░░░░ 125k`. Which name carries it is the
+  colour: `ctx_ok` green under the 250k compaction bar, `ctx_near` amber past it, `ctx_over` red
+  from 360k. The supervisor rewrites it each minute with a 5 min TTL; the plugin never writes it.
 - **the owner's glance**: a row under the title that shows the manager's `fleet_owner` token,
   in the blocked red — what waits on the owner, e.g. `owner queue · 52 tickets wait on you · oldest 83h`. The manager's
   heartbeat writes it on its own pane only (`--source herdr-manager.owner`, a 2 h TTL), so the row
