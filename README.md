@@ -303,6 +303,9 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
   in the blocked red — what waits on the owner, e.g. `owner queue · 52 tickets wait on you · oldest 83h`. The manager's
   heartbeat writes it on its own pane only (`--source herdr-manager.owner`, a 2 h TTL), so the row
   is empty and collapses everywhere else. The plugin never writes or clears it.
+- **a lane's hold on its Space**: a third Spaces row that shows the manager's `lane_hold`
+  workspace token, in the owner's violet: the hold `lanes.json` puts on that lane. Empty, the
+  row draws nothing. The plugin never writes or clears it.
 - **a project rollup** at the end of a family's top header, worst first: `■1 ◐2 ○1 ✓3` (needs
   you, working, waiting, done), so a project says what is inside before you read its rows.
 - **a services group**: the workspace holding the pane stamped `8|role|manager` is headed
