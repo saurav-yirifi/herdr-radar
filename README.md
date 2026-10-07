@@ -305,6 +305,9 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
   is empty and collapses everywhere else. The plugin never writes or clears it.
 - **a project rollup** at the end of a family's top header, worst first: `■1 ◐2 ○1 ✓3` (needs
   you, working, waiting, done), so a project says what is inside before you read its rows.
+- **a services group**: the workspace holding the pane stamped `8|role|manager` is headed
+  `SERVICES · machine_label` and sorts below all work, every row in it ranked as a role. The lanes
+  cut from its checkout leave it for a header of their repo's own, as an orphan worktree does.
 - **a badge word** on a row of its own under the title: `ask` in the blocked red, aged from ten minutes on
   (`ask 20m`, so a stale ask stands out from a fresh one), `owner` in the unknown violet,
   `tray 3`, `idle 2h` (the ages are the plugin's own, so they stay current between the manager's
