@@ -303,6 +303,10 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
   10-cell bar on a 400k gauge plus the size, e.g. `▓▓▓░░░░░░░ 125k`. Which name carries it is the
   colour: `ctx_ok` green under the 250k compaction bar, `ctx_near` amber past it, `ctx_over` red
   from 360k. The supervisor rewrites it on each pass (about a minute apart) with a 20 min TTL; the plugin never writes it.
+- **the lane's work**: a row under the gauge that shows the fleet manager's pane token for a lane
+  agent's ticket, PR and CI, e.g. `YIR-37 · PR #197 · CI ✓`. Which name carries it is the CI tier:
+  `work_ok` passing, merged or no PR (idle ink), `work_wait` pending (amber), `work_red` failing
+  (red). The heartbeat rewrites it each tick with a 2 h TTL; the plugin never writes it.
 - **the owner's glance**: a row under the title that shows the manager's `fleet_owner` token,
   in the blocked red — what waits on the owner, e.g. `owner queue · 52 tickets wait on you · oldest 83h`. The manager's
   heartbeat writes it on its own pane only (`--source herdr-manager.owner`, a 2 h TTL), so the row
