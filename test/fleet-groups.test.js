@@ -353,6 +353,20 @@ test("the services group's lanes leave its tree for their repo's header, and the
   );
 });
 
+test('a services workspace that is itself a worktree hangs under nothing: no parent, no orphan repo', () => {
+  const frame = new Frame('test');
+  const entries = [
+    { pane: 'wP:p1', workspace: 'wP', tab: 'wP:t1', fleet: '5|idle' },
+    { pane: 'w5:p1', workspace: 'w5', tab: 'w5:t1', fleet: '8|role|manager' },
+  ];
+  const worktrees = new Map([['w5', 'sb-herdr-manager']]);
+  const under = frame.sortKeys(entries, new Map([['w5', 'wP']]), worktrees, fleet.services(entries));
+  assert.deepEqual([...under.parentOf], [], 'not under its checkout');
+  assert.equal(under.familyOf('w5'), 'w5', 'a family of its own');
+  const alone = frame.sortKeys(entries.slice(1), new Map(), worktrees, fleet.services(entries));
+  assert.deepEqual([...alone.orphanRepo], [], 'no synthesised repo header over it either');
+});
+
 test('the services head reads SERVICES with its machine and rollup; its old lane sits under its repo', async (t) => {
   t.mock.property(config, 'fleetView', true);
   t.mock.property(config, 'machineLabel', 'x1pro-1');

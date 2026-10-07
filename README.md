@@ -300,7 +300,7 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
 - **a machine name on each project**: a family's top header reads `name (machine_label)`, e.g.
   `sb-herdr-manager (mini-1)`, so a list that mixes machines still says where each project runs.
 - **the owner's glance**: a row under the title that shows the manager's `fleet_owner` token,
-  in the blocked red — what waits on the owner, e.g. `you: 52 · oldest 83h`. The manager's
+  in the blocked red — what waits on the owner, e.g. `owner queue · 52 tickets wait on you · oldest 83h`. The manager's
   heartbeat writes it on its own pane only (`--source herdr-manager.owner`, a 2 h TTL), so the row
   is empty and collapses everywhere else. The plugin never writes or clears it.
 - **a project rollup** at the end of a family's top header, worst first: `■1 ◐2 ○1 ✓3` (needs
@@ -308,6 +308,8 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
 - **a services group**: the workspace holding the pane stamped `8|role|manager` is headed
   `SERVICES · machine_label` and sorts below all work, every row in it ranked as a role. The lanes
   cut from its checkout leave it for a header of their repo's own, as an orphan worktree does.
+  Only the `fleet` order sorts it last; the Spaces panel still nests those lanes under it,
+  because Herdr owns that nesting.
 - **a badge word** on a row of its own under the title: `ask` in the blocked red, aged from ten minutes on
   (`ask 20m`, so a stale ask stands out from a fresh one), `owner` in the unknown violet,
   `tray 3`, `idle 2h` (the ages are the plugin's own, so they stay current between the manager's
