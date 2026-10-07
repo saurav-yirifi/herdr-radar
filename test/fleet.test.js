@@ -69,7 +69,8 @@ test('a role pane names its persona, listed or not; a note that is no name reads
   // a persona added to the fleet after this release (the person, 2026-10-07)
   assert.deepEqual(fleet.view('idle', '8|role|compactor', 0), { rank: '8', badge: 'compactor', role: true });
   assert.deepEqual(fleet.view('blocked', '8|role|qa-lead', 0), { rank: '8', badge: 'qa-lead ask', role: true });
-  for (const odd of ['8|role', '8|role|', '8|role|Two Words', '8|role|x;rm', `8|role|${'a'.repeat(30)}`]) {
+  // `ask-bot` behind an indent would contain the dialog's ` ask`
+  for (const odd of ['8|role', '8|role|', '8|role|Two Words', '8|role|x;rm', `8|role|${'a'.repeat(30)}`, '8|role|ask-bot']) {
     assert.deepEqual(fleet.view('idle', odd, 0), { rank: '8', badge: 'role', role: true }, odd);
   }
 });
