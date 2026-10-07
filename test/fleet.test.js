@@ -269,3 +269,11 @@ test('with the fleet view on, the title_role cell colours each role mark; off, t
   config.fleetView = false;
   assert.doesNotMatch(managed.sidebarBlock('dark'), /title_role/);
 });
+
+test('a pane that stops being a role pane mid-work is rewritten, and a stray mark in a title is dropped', () => {
+  const state = require('../lib/state');
+  const line = { mark: '⣟', split: '', logo: '✳', titlePrefix: '' };
+  assert.notEqual(state.lineKey('working', line, 'T', 'executor'), state.lineKey('working', line, 'T', null));
+  const odd = state.stateTokens('working', line, `T${fleet.ROLE_MARKS.manager}`, 'relay');
+  assert.equal(odd.title_role, `${fleet.ROLE_MARKS.relay}T`);
+});
