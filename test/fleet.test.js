@@ -280,3 +280,11 @@ test('a pane that stops being a role pane mid-work is rewritten, and a stray mar
   const odd = state.stateTokens('working', line, `T${fleet.ROLE_MARKS.manager}`, 'relay');
   assert.equal(odd.title_role, `${fleet.ROLE_MARKS.relay}T`);
 });
+
+test("a fleet-on block with the badge still in the title row is stale, so a start rewrites it", (t) => {
+  withFleet(t, true);
+  const block = `${managed.sidebarBlock('dark')}\nfleet-health.txt`;
+  assert.equal(managed.fleetStale(block, true), false);
+  const older = block.split('[{ token = "$fleet_badge"').join('{ token = "$fleet_badge"');
+  assert.equal(managed.fleetStale(older, true), true);
+});

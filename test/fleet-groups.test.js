@@ -276,3 +276,40 @@ test('rollup counts needs-you, working, waiting and done, worst first; an owner 
   assert.equal(fleet.rollup([{ display: 'working' }]), '◐1');
   assert.equal(fleet.rollup([]), '');
 });
+
+test('a rollup that moves rewrites only the head rows of its family; an unchanged one writes nothing', async (t) => {
+  t.mock.property(config, 'fleetView', true);
+  t.mock.property(config, 'machineLabel', 'x1pro-1');
+  const { Frame } = require('../lib/frame');
+  const writes = [];
+  t.mock.method(herdr, 'reportMetadataAsync', async (pane, src, tokens) => {
+    writes.push([pane, tokens]);
+    return true;
+  });
+  t.mock.method(state, 'sweepOrphans', async () => true);
+  const entries = [
+    { pane: 'w1:p1', workspace: 'w1' },
+    { pane: 'w1:p2', workspace: 'w1' },
+    { pane: 'w3:p1', workspace: 'w3' },
+  ];
+  const labels = new Map([
+    ['w1', 'sb-herdr-manager'],
+    ['w3', 'vedtara-app'],
+  ]);
+  const keys = { parentOf: new Map(), orphanRepo: new Map(), familyOf: (ws) => ws };
+  const frame = new Frame('test');
+  const run = (w1) =>
+    frame.groupJobs(entries, entries, 'fleet', true, new Map([['w1', w1], ['w3', [{ display: 'done' }]]]), labels, keys, 0, []);
+  await run([{ display: 'working' }, { display: 'idle' }]);
+  assert.equal(writes.length, 3, 'the first layout writes every row');
+  assert.equal(writes[0][1].group, 'sb-herdr-manager (x1pro-1)  ◐1 ○1');
+  writes.length = 0;
+  await run([{ display: 'idle_fresh' }, { display: 'working' }]);
+  assert.equal(writes.length, 0, 'same counts, nothing written');
+  await run([{ display: 'working' }, { display: 'working' }]);
+  assert.deepEqual(
+    writes.map(([pane, tokens]) => [pane, tokens.group]),
+    [['w1:p1', 'sb-herdr-manager (x1pro-1)  ◐2']],
+    "only w1's head row is rewritten",
+  );
+});
