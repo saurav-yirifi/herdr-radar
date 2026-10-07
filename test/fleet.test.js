@@ -170,34 +170,37 @@ test('with the fleet view off, the sidebar block names no fleet token', (t) => {
   }
 });
 
-test("with the fleet view on, the badge is one cell and every row stays within Herdr's 16 tokens", (t) => {
+test("with the fleet view on, the badge is its own row under the title and every row stays within Herdr's 16 tokens", (t) => {
   withFleet(t, true);
   const on = managed.sidebarBlock('light');
   config.fleetView = false;
   const off = managed.sidebarBlock('light');
-  const cells = on.match(/\{ token = "\$fleet_badge"[^\n]*?\] \}, /g) ?? [];
-  assert.ok(cells.length > 0, 'no badge cell in the block');
-  assert.equal(new Set(cells).size, 1, 'one badge cell, the same on every row');
+  // The badge is a row of its own (fleet view 6.7): in front of the title it
+  // pushed the title off a narrow sidebar.
+  const badge = on.match(/\[\{ token = "\$fleet_badge"[^\n]*?\] \}\], /g) ?? [];
+  assert.ok(badge.length > 0, 'no badge row in the block');
+  assert.equal(new Set(badge).size, 1, 'one badge row, the same on every entry');
   // The owner's glance (YIR-687) is its own row after the title row, one cell.
   const owner = on.match(/\[\{ token = "\$fleet_owner"[^\n]*?\}\], /g) ?? [];
   assert.ok(owner.length > 0, 'no owner row in the block');
   assert.equal(new Set(owner).size, 1, 'one owner row, the same on every entry');
   const agentRow = on.split('\n').find((l) => l.startsWith('rows = ['));
-  assert.ok(agentRow.indexOf(owner[0]) > agentRow.indexOf('$title_unknown'), 'the owner row comes after the title row');
+  assert.ok(agentRow.indexOf(badge[0]) > agentRow.indexOf('$title_unknown'), 'the badge row comes after the title row');
+  assert.ok(agentRow.indexOf(owner[0]) > agentRow.indexOf(badge[0]), 'the owner row after the badge row');
   assert.ok(agentRow.indexOf(owner[0]) < agentRow.indexOf('["$gap"]'), 'and before the gap');
   // and a role pane's working title (title_role), one per vendor row
   const roleTitle = /, \{ token = "\$title_role"[^\]]*\] \}/g;
   assert.equal(
-    on.split(cells[0]).join('').split(owner[0]).join('').replace(roleTitle, ''),
+    on.split(badge[0]).join('').split(owner[0]).join('').replace(roleTitle, ''),
     off,
-    'the badge cell, the owner row and the role title are the only differences',
+    'the badge row, the owner row and the role title are the only differences',
   );
   // sidebarBlock throws when a row passes the limit; this is the count it checks.
   const count = (block) => {
     const row = block.split('\n').find((line) => line.startsWith('rows = ['));
     return (row.split('], [')[2].match(/token = "/g) ?? []).length;
   };
-  assert.equal(count(on), count(off) + 2); // the badge and the role title
+  assert.equal(count(on), count(off) + 1); // the role title; the badge left the title row
   assert.ok(count(on) <= 16, `${count(on)} tokens on the agent row`);
 });
 
