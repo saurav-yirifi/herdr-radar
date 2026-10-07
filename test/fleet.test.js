@@ -194,10 +194,14 @@ test("with the fleet view on, the badge is its own row under the title and every
   // and the Spaces panel's third row, the lane's hold (fleet view row 10)
   const hold = /,\n {2}\[\n {4}\{ token = "\$lane_hold"[^\n]*\}\n {2}\]/;
   assert.match(on.slice(on.indexOf('[ui.sidebar.spaces]')), hold, 'no hold row in the Spaces block');
+  assert.match(on, /\$lane_drift/, 'no drift cell on the hold row');
+  // and the machine tint on every group header (row 7): mini-1 amber, the Macs violet
+  const tint = /, rules = \[\{ contains = "mini-1", fg = "[^"]+" \}, \{ contains = "mac-", fg = "[^"]+" \}\]/g;
+  assert.ok((on.match(tint) ?? []).length > 0, 'no machine tint on the group header');
   assert.equal(
-    on.split(badge[0]).join('').split(owner[0]).join('').replace(roleTitle, '').replace(hold, ''),
+    on.split(badge[0]).join('').split(owner[0]).join('').replace(roleTitle, '').replace(hold, '').replace(tint, ''),
     off,
-    'the badge row, the owner row, the role title and the hold row are the only differences',
+    'the badge row, the owner row, the role title, the hold row and the machine tint are the only differences',
   );
   // sidebarBlock throws when a row passes the limit; this is the count it checks.
   const count = (block) => {
