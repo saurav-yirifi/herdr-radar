@@ -299,11 +299,12 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
   machine first made a machine's whole block jump when one of its rows lit up (2026-09-28).
 - **a machine name on each project**: a family's top header reads `name (machine_label)`, e.g.
   `sb-herdr-manager (mini-1)`, so a list that mixes machines still says where each project runs.
-- **a context gauge**: a row under the badge that shows the fleet supervisor's pane token, a
-  10-cell bar on a 400k gauge plus the size, e.g. `▓▓▓░░░░░░░ 125k`. Which name carries it is the
-  colour: `ctx_ok` green under the 250k compaction bar, `ctx_near` amber past it, `ctx_over` red
-  from 360k. The supervisor rewrites it on each pass (about a minute apart) with a 20 min TTL; the plugin never writes it.
-- **the lane's work**: a row under the gauge that shows the fleet manager's pane token for a lane
+- **the context size**: in front of each title, the fleet supervisor's pane token, the session's
+  size alone, e.g. `186k`. Which name carries it is the colour: `ctx_ok` green under the 250k
+  compaction bar, `ctx_near` amber past it, `ctx_over` red from 360k. It sits in the title row so it
+  costs no line. The supervisor rewrites it on each pass (about a minute apart) with a 20 min TTL;
+  the plugin never writes it.
+- **the lane's work**: a row under the badge that shows the fleet manager's pane token for a lane
   agent's ticket, PR and CI, e.g. `YIR-37 · PR #197 · CI ✓`. Which name carries it is the CI tier:
   `work_ok` passing, merged or no PR (idle ink), `work_wait` pending (amber), `work_red` failing
   (red). The heartbeat rewrites it each tick with a 2 h TTL; the plugin never writes it.

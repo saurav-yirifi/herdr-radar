@@ -102,7 +102,9 @@ test('a fleet-on block from before the role colours and health line is stale, so
   assert.equal(managed.fleetStale(older, true), true);
   assert.equal(managed.fleetStale(current.replace(/.*fleet-health.*\n/, ''), true), true);
   // and one from before the context gauge (row 4)
-  assert.equal(managed.fleetStale(current.replace(/\[\{ token = "\$ctx_ok".*?\}\], /g, ''), true), true);
+  assert.equal(managed.fleetStale(current.replace(/, \{ token = "\$ctx_ok"[^}]*\}/g, ''), true), true);
+  // and one with the older gauge row of its own (a row that starts at the size)
+  assert.equal(managed.fleetStale(current.replace(/, \{ token = "\$ctx_ok"/g, '], [{ token = "$ctx_ok"'), true), true);
   // and one from before the work row (row 9)
   assert.equal(managed.fleetStale(current.replace(/\[\{ token = "\$work_ok".*?\}\], /g, ''), true), true);
   config.fleetView = false;
@@ -192,11 +194,15 @@ test("with the fleet view on, the badge is its own row under the title and every
   const agentRow = on.split('\n').find((l) => l.startsWith('rows = ['));
   assert.ok(agentRow.indexOf(badge[0]) > agentRow.indexOf('$title_unknown'), 'the badge row comes after the title row');
   // The context gauge (row 4): its own row of three tiers, between the badge and the owner.
-  const ctx = on.match(/\[\{ token = "\$ctx_ok"[^\n]*?"\$ctx_near"[^\n]*?"\$ctx_over"[^\n]*?\}\], /g) ?? [];
-  assert.ok(ctx.length > 0, 'no context gauge row in the block');
-  assert.equal(new Set(ctx).size, 1, 'one gauge row, the same on every entry');
-  assert.ok(agentRow.indexOf(ctx[0]) > agentRow.indexOf(badge[0]), 'the gauge row after the badge row');
-  assert.ok(agentRow.indexOf(owner[0]) > agentRow.indexOf(ctx[0]), 'the owner row after the gauge row');
+  // The context size (row 4): three tier cells inside the title row, in front of the title,
+  // never a row of its own (the person, 2026-10-07: the bar's row wasted a line).
+  const ctx = on.match(/, \{ token = "\$ctx_ok"[^}]*\}, \{ token = "\$ctx_near"[^}]*\}, \{ token = "\$ctx_over"[^}]*\}/g) ?? [];
+  assert.ok(ctx.length > 0, 'no context cells in the block');
+  assert.equal(new Set(ctx).size, 1, 'the same context cells on every entry');
+  assert.ok(!/\[\{ token = "\$ctx_/.test(on), 'no row starts at the context size');
+  const title = on.split('\n').find((l) => l.includes(ctx[0]));
+  assert.ok(title.indexOf(ctx[0]) > title.indexOf('$logo_stale') && title.indexOf(ctx[0]) < title.indexOf('$title_working'),
+    'the size sits after the logo and in front of the title');
   const palette = require('../lib/palette');
   const fg = (tier) => ctx[0].match(new RegExp(`"\\$ctx_${tier}", fg = "([^"]+)"`))[1];
   assert.deepEqual([fg('ok'), fg('near'), fg('over')],
@@ -206,7 +212,7 @@ test("with the fleet view on, the badge is its own row under the title and every
   const work = on.match(/\[\{ token = "\$work_ok"[^\n]*?"\$work_wait"[^\n]*?"\$work_red"[^\n]*?\}\], /g) ?? [];
   assert.ok(work.length > 0, 'no work row in the block');
   assert.equal(new Set(work).size, 1, 'one work row, the same on every entry');
-  assert.ok(agentRow.indexOf(work[0]) > agentRow.indexOf(ctx[0]), 'the work row after the gauge row');
+  assert.ok(agentRow.indexOf(work[0]) > agentRow.indexOf(badge[0]), 'the work row after the badge row');
   assert.ok(agentRow.indexOf(owner[0]) > agentRow.indexOf(work[0]), 'the owner row after the work row');
   const wfg = (tier) => work[0].match(new RegExp(`"\\$work_${tier}", fg = "([^"]+)"`))[1];
   assert.deepEqual([wfg('ok'), wfg('wait'), wfg('red')],
@@ -229,14 +235,14 @@ test("with the fleet view on, the badge is its own row under the title and every
   assert.equal(
     on.split(badge[0]).join('').split(ctx[0]).join('').split(work[0]).join('').split(owner[0]).join('').replace(roleTitle, '').replace(hold, '').replace(tint, ''),
     off,
-    'the badge row, the gauge row, the work row, the owner row, the role title, the hold row and the machine tint are the only differences',
+    'the badge row, the context cells, the work row, the owner row, the role title, the hold row and the machine tint are the only differences',
   );
   // sidebarBlock throws when a row passes the limit; this is the count it checks.
   const count = (block) => {
     const row = block.split('\n').find((line) => line.startsWith('rows = ['));
     return (row.split('], [')[2].match(/token = "/g) ?? []).length;
   };
-  assert.equal(count(on), count(off) + 1); // the role title; the badge left the title row
+  assert.equal(count(on), count(off) + 4); // the role title and the three context tiers; the badge left the title row
   assert.ok(count(on) <= 16, `${count(on)} tokens on the agent row`);
 });
 
