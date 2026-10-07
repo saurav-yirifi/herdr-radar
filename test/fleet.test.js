@@ -101,6 +101,8 @@ test('a fleet-on block from before the role colours and health line is stale, so
   const older = current.replace(/\{ contains = "manager"[^}]*\},?/, '').replace(/.*fleet-health.*\n/, '');
   assert.equal(managed.fleetStale(older, true), true);
   assert.equal(managed.fleetStale(current.replace(/.*fleet-health.*\n/, ''), true), true);
+  // and one from before the context gauge (row 4)
+  assert.equal(managed.fleetStale(current.replace(/\[\{ token = "\$ctx_ok".*?\}\], /g, ''), true), true);
   config.fleetView = false;
   const off = managed.block() + managed.sidebarBlock('dark');
   assert.equal(managed.fleetStale(off, false), false);
@@ -187,7 +189,17 @@ test("with the fleet view on, the badge is its own row under the title and every
   assert.equal(new Set(owner).size, 1, 'one owner row, the same on every entry');
   const agentRow = on.split('\n').find((l) => l.startsWith('rows = ['));
   assert.ok(agentRow.indexOf(badge[0]) > agentRow.indexOf('$title_unknown'), 'the badge row comes after the title row');
-  assert.ok(agentRow.indexOf(owner[0]) > agentRow.indexOf(badge[0]), 'the owner row after the badge row');
+  // The context gauge (row 4): its own row of three tiers, between the badge and the owner.
+  const ctx = on.match(/\[\{ token = "\$ctx_ok"[^\n]*?"\$ctx_near"[^\n]*?"\$ctx_over"[^\n]*?\}\], /g) ?? [];
+  assert.ok(ctx.length > 0, 'no context gauge row in the block');
+  assert.equal(new Set(ctx).size, 1, 'one gauge row, the same on every entry');
+  assert.ok(agentRow.indexOf(ctx[0]) > agentRow.indexOf(badge[0]), 'the gauge row after the badge row');
+  assert.ok(agentRow.indexOf(owner[0]) > agentRow.indexOf(ctx[0]), 'the owner row after the gauge row');
+  const palette = require('../lib/palette');
+  const fg = (tier) => ctx[0].match(new RegExp(`"\\$ctx_${tier}", fg = "([^"]+)"`))[1];
+  assert.deepEqual([fg('ok'), fg('near'), fg('over')],
+    [palette.stateFor('light').done, palette.brand.other, palette.stateFor('light').blocked], 'each tier in its own colour');
+  assert.match(ctx[0], /"\$ctx_over", fg = "[^"]+", bold = true/, 'over is bold');
   assert.ok(agentRow.indexOf(owner[0]) < agentRow.indexOf('["$gap"]'), 'and before the gap');
   // and a role pane's working title (title_role), one per vendor row
   const roleTitle = /, \{ token = "\$title_role"[^\]]*\] \}/g;
@@ -203,9 +215,9 @@ test("with the fleet view on, the badge is its own row under the title and every
   assert.ok(tinted('revoxy (mac-1)') && tinted('SERVICES · mac-2'), 'a Mac is not tinted');
   assert.ok(!tinted('mac-notes (x1pro-1)') && !tinted('SERVICES · x1pro-1'), 'x1pro-1 is tinted');
   assert.equal(
-    on.split(badge[0]).join('').split(owner[0]).join('').replace(roleTitle, '').replace(hold, '').replace(tint, ''),
+    on.split(badge[0]).join('').split(ctx[0]).join('').split(owner[0]).join('').replace(roleTitle, '').replace(hold, '').replace(tint, ''),
     off,
-    'the badge row, the owner row, the role title, the hold row and the machine tint are the only differences',
+    'the badge row, the gauge row, the owner row, the role title, the hold row and the machine tint are the only differences',
   );
   // sidebarBlock throws when a row passes the limit; this is the count it checks.
   const count = (block) => {
