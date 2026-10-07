@@ -365,6 +365,24 @@ test('a role pane at its tree depth: the word takes the indent the logo carried,
   assert.deepEqual(writes, [`${indent}manager`, 'manager']);
 });
 
+test('a role note the plugin does not know is still a role pane: no title, the word takes the indent', async (t) => {
+  withFleet(t, true);
+  const state = require('../lib/state');
+  const sent = {};
+  t.mock.method(state, 'writeTokens', async (src, pane, tokens) => Object.assign(sent, tokens) && true);
+  t.mock.method(herdr, 'reportMetadataAsync', async (pane, src, tokens) => Object.assign(sent, tokens) && true);
+  const frame = new Frame('test');
+  const indent = state.INDENTS[1];
+  const keys = { minuteKey: () => '000000000001', wsKeys: new Map(), tabKeys: new Map(), fleet: undefined };
+  const jobs = [];
+  const entry = { pane: 'w5:p4', name: 'claude', title: 'Janitor sweep', fleet: '8|role|janitor' };
+  frame.paneJobs(entry, 'idle', { tabs: new Map(), keys, indent, spinStep: 0 }, 1000, [], jobs);
+  await Promise.all(jobs);
+  assert.equal(sent.fleet_role, `${indent}role`);
+  assert.equal(sent.title_idle, null);
+  assert.ok(sent.logo && !sent.logo.startsWith(indent), 'the logo gave its indent to the word');
+});
+
 test('a blocked role pane wears the blocked red: the role cell rules ask first', (t) => {
   withFleet(t, true);
   const palette = require('../lib/palette');
