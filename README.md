@@ -338,7 +338,7 @@ Live state wins over the token: a pane working now reads as working, a dialog as
 the manager last wrote. The plugin reads `hm_fleet` and writes only its own `fleet_rank`,
 `fleet_badge`, `fleet_ws_key` and `fleet_row_key`. Turning the setting on or off from the popup restarts the daemon, which rewrites
 the blocks with or without the fleet cells; a start also rewrites a fleet-on block written by an
-older version (one without the role colours, the health segment the badge's own row, or the work beside the badge).
+older version (one without the role colours, the health segment, the badge's own row, or the work beside the badge).
 
 `node tools/fleet-mock.js` prints a mock of the panel from fixtures, without a Herdr server.
 
