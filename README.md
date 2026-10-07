@@ -308,10 +308,6 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
   agent's ticket, PR and CI, e.g. `YIR-37 · PR #197 · CI ✓`. Which name carries it is the CI tier:
   `work_ok` passing, merged or no PR (idle ink), `work_wait` pending (amber), `work_red` failing
   (red). The heartbeat rewrites it each tick with a 2 h TTL; the plugin never writes it.
-- **the owner's glance**: a row under the title that shows the manager's `fleet_owner` token,
-  in the blocked red — what waits on the owner, e.g. `owner queue · 52 tickets wait on you · oldest 83h`. The manager's
-  heartbeat writes it on its own pane only (`--source herdr-manager.owner`, a 2 h TTL), so the row
-  is empty and collapses everywhere else. The plugin never writes or clears it.
 - **a lane's hold on its Space**: a third Spaces row that shows the manager's `lane_hold`
   workspace token, in the owner's violet: the hold `lanes.json` puts on that lane. Empty, the
   row draws nothing. The plugin never writes or clears it.
@@ -328,17 +324,21 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
 - **a badge word** on a row under the title, which the lane's work shares: `ask` in the blocked red, aged from ten minutes on
   (`ask 20m`, so a stale ask stands out from a fresh one), `owner` in the unknown violet,
   `tray 3`, `in use` (the person is in that session, by the manager's check), `idle 2h` (the ages are the plugin's own, so they stay current between the manager's
-  writes), `test`. A `role` row names its role — `manager`, `builder`, `dispatcher`, `executor`,
-  `relay` — each in its own colour from the theme's palette; any other role note reads `role`.
+  writes), `test`.
+- **a role pane's one line**: a pane stamped `8|role|<role>` draws `manager · <logo> · 142k` — its
+  role word (`fleet_role`) in front of the logo and the context size, and no title. Each of
+  `manager`, `builder`, `dispatcher`, `executor` and `relay` wears its own colour from the theme's
+  palette; any other role note reads `role`. A dialog in it reads `manager ask` in the blocked red.
 - **the manager's health line** in the tab bar: a first segment that prints
   `~/.herdr/fleet-health.txt`, which the manager's heartbeat writes (watch, supervisor, who
   needs the person). No file, no segment.
 
 Live state wins over the token: a pane working now reads as working, a dialog as `ask`, whatever
 the manager last wrote. The plugin reads `hm_fleet` and writes only its own `fleet_rank`,
-`fleet_badge`, `fleet_ws_key` and `fleet_row_key`. Turning the setting on or off from the popup restarts the daemon, which rewrites
+`fleet_badge`, `fleet_role`, `fleet_ws_key` and `fleet_row_key`. Turning the setting on or off from the popup restarts the daemon, which rewrites
 the blocks with or without the fleet cells; a start also rewrites a fleet-on block written by an
-older version (one without the role colours, the health segment, the badge's own row, or the work beside the badge).
+older version (one without the role colours, the health segment, the badge's own row, the work beside the badge, or the role
+panes' one line).
 
 `node tools/fleet-mock.js` prints a mock of the panel from fixtures, without a Herdr server.
 
@@ -354,7 +354,7 @@ herdr plugin action invoke hhdebb.herdr-radar.state-stop
 while pgrep -f agent-state.js >/dev/null; do sleep 1; done   # the old animator has exited
 herdr plugin action invoke hhdebb.herdr-radar.state-start
 herdr plugin action invoke hhdebb.herdr-radar.configure
-grep -c fleet_owner ~/.config/herdr/config.toml     # non-zero: the fleet block is written
+grep -c fleet_role ~/.config/herdr/config.toml      # non-zero: the fleet block is written
 grep -c fleet_machine ~/.config/herdr/config.toml   # 0: and it is this version's
 ```
 
