@@ -45,13 +45,14 @@ test('each kind gets its rank and its word', () => {
   assert.deepEqual(at('1|ask'), { rank: '1', badge: 'ask 2h' });
   assert.deepEqual(at('2|owner|YIR-489'), { rank: '2', badge: 'owner' });
   assert.deepEqual(at('3|tray|3'), { rank: '3', badge: 'tray 3' });
+  assert.deepEqual(at('4|use'), { rank: '4', badge: 'in use' });
   assert.deepEqual(at('5|idle'), { rank: '5', badge: 'idle 2h' });
   assert.deepEqual(at('8|role|executor'), { rank: '8', badge: 'executor' });
   assert.deepEqual(at('9|test|w4:p6'), { rank: '9', badge: 'test' });
 });
 
 test('live state outranks the manager: working now is working, a dialog is an ask', () => {
-  for (const token of ['1|ask', '2|owner', '3|tray|3', '5|idle']) {
+  for (const token of ['1|ask', '2|owner', '3|tray|3', '4|use', '5|idle']) {
     assert.deepEqual(fleet.view('working', token, 0), { rank: '4', badge: null }, token);
   }
   assert.deepEqual(fleet.view('blocked', null, 0), { rank: '1', badge: 'ask' });

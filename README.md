@@ -312,7 +312,7 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
   because Herdr owns that nesting.
 - **a badge word** on a row of its own under the title: `ask` in the blocked red, aged from ten minutes on
   (`ask 20m`, so a stale ask stands out from a fresh one), `owner` in the unknown violet,
-  `tray 3`, `idle 2h` (the ages are the plugin's own, so they stay current between the manager's
+  `tray 3`, `in use` (the person is in that session, by the manager's check), `idle 2h` (the ages are the plugin's own, so they stay current between the manager's
   writes), `test`. A `role` row names its role — `manager`, `builder`, `dispatcher`, `executor`,
   `relay` — each in its own colour from the theme's palette; any other role note reads `role`.
 - **the manager's health line** in the tab bar: a first segment that prints
