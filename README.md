@@ -304,7 +304,7 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
   compaction bar, `ctx_near` amber past it, `ctx_over` red from 360k. It sits in the title row so it
   costs no line. The supervisor rewrites it on each pass (about a minute apart) with a 20 min TTL;
   the plugin never writes it.
-- **the lane's work**: a row under the badge that shows the fleet manager's pane token for a lane
+- **the lane's work**: on the badge's row, after the badge, the fleet manager's pane token for a lane
   agent's ticket, PR and CI, e.g. `YIR-37 · PR #197 · CI ✓`. Which name carries it is the CI tier:
   `work_ok` passing, merged or no PR (idle ink), `work_wait` pending (amber), `work_red` failing
   (red). The heartbeat rewrites it each tick with a 2 h TTL; the plugin never writes it.
@@ -325,7 +325,7 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
   cut from its checkout leave it for a header of their repo's own, as an orphan worktree does.
   Only the `fleet` order sorts it last; the Spaces panel still nests those lanes under it,
   because Herdr owns that nesting.
-- **a badge word** on a row of its own under the title: `ask` in the blocked red, aged from ten minutes on
+- **a badge word** on a row under the title, which the lane's work shares: `ask` in the blocked red, aged from ten minutes on
   (`ask 20m`, so a stale ask stands out from a fresh one), `owner` in the unknown violet,
   `tray 3`, `in use` (the person is in that session, by the manager's check), `idle 2h` (the ages are the plugin's own, so they stay current between the manager's
   writes), `test`. A `role` row names its role — `manager`, `builder`, `dispatcher`, `executor`,
@@ -338,7 +338,7 @@ Live state wins over the token: a pane working now reads as working, a dialog as
 the manager last wrote. The plugin reads `hm_fleet` and writes only its own `fleet_rank`,
 `fleet_badge`, `fleet_ws_key` and `fleet_row_key`. Turning the setting on or off from the popup restarts the daemon, which rewrites
 the blocks with or without the fleet cells; a start also rewrites a fleet-on block written by an
-older version (one without the role colours, the health segment or the badge's own row).
+older version (one without the role colours, the health segment the badge's own row, or the work beside the badge).
 
 `node tools/fleet-mock.js` prints a mock of the panel from fixtures, without a Herdr server.
 
