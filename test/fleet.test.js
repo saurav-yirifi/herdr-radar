@@ -185,17 +185,19 @@ test("with the fleet view on, the badge is one cell and every row stays within H
   const agentRow = on.split('\n').find((l) => l.startsWith('rows = ['));
   assert.ok(agentRow.indexOf(owner[0]) > agentRow.indexOf('$title_unknown'), 'the owner row comes after the title row');
   assert.ok(agentRow.indexOf(owner[0]) < agentRow.indexOf('["$gap"]'), 'and before the gap');
+  // and a role pane's working title (title_role), one per vendor row
+  const roleTitle = /, \{ token = "\$title_role"[^\]]*\] \}/g;
   assert.equal(
-    on.split(cells[0]).join('').split(owner[0]).join(''),
+    on.split(cells[0]).join('').split(owner[0]).join('').replace(roleTitle, ''),
     off,
-    'the badge cell and the owner row are the only differences',
+    'the badge cell, the owner row and the role title are the only differences',
   );
   // sidebarBlock throws when a row passes the limit; this is the count it checks.
   const count = (block) => {
     const row = block.split('\n').find((line) => line.startsWith('rows = ['));
     return (row.split('], [')[2].match(/token = "/g) ?? []).length;
   };
-  assert.equal(count(on), count(off) + 1);
+  assert.equal(count(on), count(off) + 2); // the badge and the role title
   assert.ok(count(on) <= 16, `${count(on)} tokens on the agent row`);
 });
 
@@ -232,4 +234,46 @@ test('an idle badge wakes the frame when its age word changes', (t) => {
   const deadlines = [];
   frame.fleetJobs({ pane: 'w5:p2', fleet: '5|idle' }, 'idle', now, deadlines, []);
   assert.deepEqual(deadlines, [now + 5 * MIN]);
+});
+
+test('a role pane working goes out as title_role behind its mark; a lane keeps title_working', () => {
+  const state = require('../lib/state');
+  const line = { mark: '⣟', split: '', logo: '✳', titlePrefix: '' };
+  const role = state.stateTokens('working', line, 'Executor persona setup', 'executor');
+  assert.equal(role.title_role, `${fleet.ROLE_MARKS.executor}Executor persona setup`);
+  assert.equal(role.title_working, null);
+  const lane = state.stateTokens('working', line, 'Implement OAuth scopes', null);
+  assert.equal(lane.title_working, 'Implement OAuth scopes');
+  assert.equal(lane.title_role, null);
+  // a role pane that stops working leaves title_role for its state's own title
+  const idle = state.stateTokens('idle', line, 'Executor persona setup', 'executor');
+  assert.equal(idle.title_role, null);
+  assert.equal(idle.title_idle, 'Executor persona setup');
+});
+
+test('roleOf names only a known role from a role token', () => {
+  assert.equal(fleet.roleOf('8|role|manager'), 'manager');
+  assert.equal(fleet.roleOf('8|role|janitor'), null);
+  assert.equal(fleet.roleOf('1|ask'), null);
+  assert.equal(fleet.roleOf(undefined), null);
+});
+
+test('with the fleet view on, the title_role cell colours each role mark; off, there is no cell', (t) => {
+  withFleet(t, true);
+  const on = managed.sidebarBlock('dark');
+  const cellText = on.match(/\{ token = "\$title_role"[^\]]*\]/)[0];
+  for (const role of fleet.ROLES) {
+    const code = fleet.ROLE_MARKS[role].codePointAt(0).toString(16).padStart(4, '0');
+    assert.match(cellText, new RegExp(`contains = "\\\\u${code}", fg = "#[0-9a-f]{6}"`), role);
+  }
+  config.fleetView = false;
+  assert.doesNotMatch(managed.sidebarBlock('dark'), /title_role/);
+});
+
+test('a pane that stops being a role pane mid-work is rewritten, and a stray mark in a title is dropped', () => {
+  const state = require('../lib/state');
+  const line = { mark: '⣟', split: '', logo: '✳', titlePrefix: '' };
+  assert.notEqual(state.lineKey('working', line, 'T', 'executor'), state.lineKey('working', line, 'T', null));
+  const odd = state.stateTokens('working', line, `T${fleet.ROLE_MARKS.manager}`, 'relay');
+  assert.equal(odd.title_role, `${fleet.ROLE_MARKS.relay}T`);
 });
