@@ -306,6 +306,9 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
 - **a lane's hold on its Space**: a third Spaces row that shows the manager's `lane_hold`
   workspace token, in the owner's violet: the hold `lanes.json` puts on that lane. Empty, the
   row draws nothing. The plugin never writes or clears it.
+- **a machine tint**: a group header ending `(mini-1)` or `· mini-1` wears amber, one on a Mac violet;
+  x1pro-1, the lanes' home, keeps the plain header. Beside the hold, `lane_drift` (amber) flags
+  a lane's Space that sits off that home, e.g. `off x1pro: move when done`.
 - **a project rollup** at the end of a family's top header, worst first: `■1 ◐2 ○1 ✓3` (needs
   you, working, waiting, done), so a project says what is inside before you read its rows.
 - **a services group**: the workspace holding the pane stamped `8|role|manager` is headed
