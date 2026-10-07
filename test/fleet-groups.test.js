@@ -225,3 +225,91 @@ test("with the fleet view on, a family's top header names its machine, a worktre
   assert.equal(writes.get('w3:p1').group_parent, 'vedtara-astro (mini-1)');
   assert.ok(!writes.get('w3:p1').group.includes('mini-1'), 'an orphan under its named repo row stays bare');
 });
+
+test("with the fleet view on, a family's top header carries its rollup and a worktree under it does not", async (t) => {
+  t.mock.property(config, 'fleetView', true);
+  t.mock.property(config, 'machineLabel', 'x1pro-1');
+  const writes = new Map();
+  t.mock.method(herdr, 'reportMetadataAsync', async (pane, src, tokens) => {
+    writes.set(pane, tokens);
+    return true;
+  });
+  const entries = [
+    { pane: 'w1:p1', workspace: 'w1' },
+    { pane: 'w2:p1', workspace: 'w2' },
+    { pane: 'w3:p1', workspace: 'w3' },
+  ];
+  const labels = new Map([
+    ['w1', 'sb-herdr-manager'],
+    ['w2', 'feat-x'],
+    ['w3', 'vedtara-app'],
+  ]);
+  const parentOf = new Map([['w2', 'w1']]);
+  const orphanRepo = new Map([['w3', 'vedtara-astro']]);
+  const familyOf = (ws) => parentOf.get(ws) ?? (orphanRepo.has(ws) ? `repo:${orphanRepo.get(ws)}` : ws);
+  await state.writeGroups('src', entries, labels, new Set(), {
+    parentOf,
+    orphanRepo,
+    familyOf,
+    rollups: new Map([
+      ['w1', '■1 ◐1'],
+      ['repo:vedtara-astro', '✓2'],
+    ]),
+  });
+  assert.equal(writes.get('w1:p1').group, 'sb-herdr-manager (x1pro-1)  ■1 ◐1');
+  assert.ok(!writes.get('w2:p1').group.includes('■'), 'a worktree under its header carries no rollup');
+  assert.equal(writes.get('w3:p1').group_parent, 'vedtara-astro (x1pro-1)  ✓2');
+});
+
+test('rollup counts needs-you, working, waiting and done, worst first; an owner stamp outranks done', () => {
+  assert.equal(
+    fleet.rollup([
+      { display: 'done', fleet: '2|owner|YIR-1' },
+      { display: 'working' },
+      { display: 'done' },
+      { display: 'done' },
+      { display: 'idle_stale' },
+      { display: 'blocked' },
+    ]),
+    '■2 ◐1 ○1 ✓2',
+  );
+  assert.equal(fleet.rollup([{ display: 'working' }]), '◐1');
+  assert.equal(fleet.rollup([]), '');
+});
+
+test('a rollup that moves rewrites only the head rows of its family; an unchanged one writes nothing', async (t) => {
+  t.mock.property(config, 'fleetView', true);
+  t.mock.property(config, 'machineLabel', 'x1pro-1');
+  const { Frame } = require('../lib/frame');
+  const writes = [];
+  t.mock.method(herdr, 'reportMetadataAsync', async (pane, src, tokens) => {
+    writes.push([pane, tokens]);
+    return true;
+  });
+  t.mock.method(state, 'sweepOrphans', async () => true);
+  const entries = [
+    { pane: 'w1:p1', workspace: 'w1' },
+    { pane: 'w1:p2', workspace: 'w1' },
+    { pane: 'w3:p1', workspace: 'w3' },
+  ];
+  const labels = new Map([
+    ['w1', 'sb-herdr-manager'],
+    ['w3', 'vedtara-app'],
+  ]);
+  const keys = { parentOf: new Map(), orphanRepo: new Map(), familyOf: (ws) => ws };
+  const frame = new Frame('test');
+  const run = (w1) =>
+    frame.groupJobs(entries, entries, 'fleet', true, new Map([['w1', w1], ['w3', [{ display: 'done' }]]]), labels, keys, 0, []);
+  await run([{ display: 'working' }, { display: 'idle' }]);
+  assert.equal(writes.length, 3, 'the first layout writes every row');
+  assert.equal(writes[0][1].group, 'sb-herdr-manager (x1pro-1)  ◐1 ○1');
+  writes.length = 0;
+  await run([{ display: 'idle_fresh' }, { display: 'working' }]);
+  assert.equal(writes.length, 0, 'same counts, nothing written');
+  await run([{ display: 'working' }, { display: 'working' }]);
+  assert.deepEqual(
+    writes.map(([pane, tokens]) => [pane, tokens.group]),
+    [['w1:p1', 'sb-herdr-manager (x1pro-1)  ◐2']],
+    "only w1's head row is rewritten",
+  );
+});
