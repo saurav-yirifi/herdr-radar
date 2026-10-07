@@ -64,10 +64,15 @@ test('a service stays a service even while it works', () => {
   assert.deepEqual(fleet.view('blocked', '9|test|w4:p6', 0), { rank: '9', badge: 'test' });
 });
 
-test('a role badge names the role; an unnamed or unknown role still reads as a role', () => {
+test('a role pane names its persona, listed or not; a note that is no name reads as a role', () => {
   assert.deepEqual(fleet.view('idle', '8|role|dispatcher', 0), { rank: '8', badge: 'dispatcher', role: true });
-  assert.deepEqual(fleet.view('idle', '8|role', 0), { rank: '8', badge: 'role', role: true });
-  assert.deepEqual(fleet.view('idle', '8|role|compactor', 0), { rank: '8', badge: 'role', role: true });
+  // a persona added to the fleet after this release (the person, 2026-10-07)
+  assert.deepEqual(fleet.view('idle', '8|role|compactor', 0), { rank: '8', badge: 'compactor', role: true });
+  assert.deepEqual(fleet.view('blocked', '8|role|qa-lead', 0), { rank: '8', badge: 'qa-lead ask', role: true });
+  // `ask-bot` behind an indent would contain the dialog's ` ask`
+  for (const odd of ['8|role', '8|role|', '8|role|Two Words', '8|role|x;rm', `8|role|${'a'.repeat(30)}`, '8|role|ask-bot']) {
+    assert.deepEqual(fleet.view('idle', odd, 0), { rank: '8', badge: 'role', role: true }, odd);
+  }
 });
 
 test('a role pane held by a dialog says ask beside its role, still ranked a service', () => {
@@ -375,7 +380,7 @@ test('a role note the plugin does not know is still a role pane: no title, the w
   const indent = state.INDENTS[1];
   const keys = { minuteKey: () => '000000000001', wsKeys: new Map(), tabKeys: new Map(), fleet: undefined };
   const jobs = [];
-  const entry = { pane: 'w5:p4', name: 'claude', title: 'Janitor sweep', fleet: '8|role|janitor' };
+  const entry = { pane: 'w5:p4', name: 'claude', title: 'Janitor sweep', fleet: '8|role|Janitor' };
   frame.paneJobs(entry, 'idle', { tabs: new Map(), keys, indent, spinStep: 0 }, 1000, [], jobs);
   await Promise.all(jobs);
   assert.equal(sent.fleet_role, `${indent}role`);
@@ -383,12 +388,21 @@ test('a role note the plugin does not know is still a role pane: no title, the w
   assert.ok(sent.logo && !sent.logo.startsWith(indent), 'the logo gave its indent to the word');
 });
 
-test('a blocked role pane wears the blocked red: the role cell rules ask first', (t) => {
+test('the role cell reads only a dialog and the role names, so no persona name trips a badge word', (t) => {
   withFleet(t, true);
   const palette = require('../lib/palette');
   const roleCell = managed.sidebarBlock('dark').match(/\{ token = "\$fleet_role"[^\n]*?\] \}/)[0];
   const rules = [...roleCell.matchAll(/contains = "([^"]+)", fg = "([^"]+)"/g)].map(([, word, fg]) => [word, fg]);
-  assert.deepEqual(rules[0], ['ask', palette.stateFor('dark').blocked]);
+  // a dialog first, in the blocked red, matched with its space so `taskmaster` stays plain
+  assert.deepEqual(rules[0], [' ask', palette.stateFor('dark').blocked]);
+  assert.deepEqual(rules.slice(1).map(([word]) => word), fleet.ROLES);
+  const fires = (name) => rules.filter(([word]) => name.includes(word)).map(([word]) => word);
+  for (const name of ['compactor', 'controller', 'tester', 'taskmaster', 'idler', 'owner-desk', 'tray-bot']) {
+    assert.deepEqual(fires(name), [], name);
+  }
+  assert.deepEqual(fires('compactor ask'), [' ask']);
+  // a persona with no colour of its own reads in the plain ink
+  assert.ok(roleCell.startsWith(`{ token = "$fleet_role", fg = "${palette.inkFor('dark')}"`));
 });
 
 test('a pane that stops being a role pane is rewritten', () => {
@@ -402,6 +416,8 @@ test('a fleet-on block from before the role line (role title, owner row) is stal
   const block = `${managed.sidebarBlock('dark')}\nfleet-health.txt`;
   assert.equal(managed.fleetStale(block, true), false);
   assert.equal(managed.fleetStale(block.split('$fleet_role').join('$title_role'), true), true);
+  // and one from before any persona named its row, whose role cell carried the badge's rules
+  assert.equal(managed.fleetStale(block.split('contains = " ask"').join('contains = "ask"'), true), true);
 });
 
 test("a fleet-on block with the badge still in the title row is stale, so a start rewrites it", (t) => {

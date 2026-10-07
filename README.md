@@ -328,7 +328,9 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
 - **a role pane's one line**: a pane stamped `8|role|<role>` draws `manager · <logo> · 142k` — its
   role word (`fleet_role`) in front of the logo and the context size, and no title. Each of
   `manager`, `builder`, `dispatcher`, `executor` and `relay` wears its own colour from the theme's
-  palette; any other role note reads `role`. A dialog in it reads `manager ask` in the blocked red.
+  palette. Any other persona names itself (`8|role|compactor` reads `compactor`, in the plain ink):
+  a note of lower-case letters, digits and dashes is the word, anything else reads `role`. A dialog
+  in it reads `manager ask` in the blocked red.
 - **the manager's health line** in the tab bar: a first segment that prints
   `~/.herdr/fleet-health.txt`, which the manager's heartbeat writes (watch, supervisor, who
   needs the person). No file, no segment.
