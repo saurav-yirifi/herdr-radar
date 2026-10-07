@@ -335,6 +335,44 @@ test('roleOf names only a known role from a role token', () => {
   assert.equal(fleet.roleOf(undefined), null);
 });
 
+test('a role pane at its tree depth: the word takes the indent the logo carried, unless a corner leads', async (t) => {
+  withFleet(t, true);
+  const state = require('../lib/state');
+  const writes = [];
+  t.mock.method(herdr, 'reportMetadataAsync', async (pane, src, tokens) => {
+    writes.push(tokens.fleet_role);
+    return true;
+  });
+  const frame = new Frame('test');
+  const entry = { pane: 'w5:p1', name: 'claude', title: 'T', fleet: '8|role|manager' };
+  const indent = state.INDENTS[1];
+  assert.ok(indent, 'the fixture needs a non-empty indent');
+  // the group's head: no corner, so the indent is the first cell's
+  const head = state.composeLine(entry, 'idle', '', indent, 0, '');
+  assert.ok(head.logo.startsWith(indent), 'a lane keeps the indent on its logo');
+  const logo = state.stateTokens('idle', head, 'T', 'manager').logo;
+  assert.ok(logo && !logo.startsWith(indent), 'the role pane logo gives it up');
+  assert.equal(state.stateTokens('idle', head, 'T', null).logo, head.logo, 'a lane keeps it');
+  let jobs = [];
+  frame.fleetJobs(entry, 'idle', 1000, [], jobs, undefined, head.margin);
+  await Promise.all(jobs);
+  // a member: the corner leads and carries the indent, the word none
+  const member = state.composeLine(entry, 'idle', '', indent, 0, '├─ ');
+  assert.equal(state.stateTokens('idle', member, 'T', 'manager').logo, member.logo);
+  jobs = [];
+  frame.fleetJobs({ ...entry, pane: 'w5:p2' }, 'idle', 1000, [], jobs, undefined, member.margin);
+  await Promise.all(jobs);
+  assert.deepEqual(writes, [`${indent}manager`, 'manager']);
+});
+
+test('a blocked role pane wears the blocked red: the role cell rules ask first', (t) => {
+  withFleet(t, true);
+  const palette = require('../lib/palette');
+  const roleCell = managed.sidebarBlock('dark').match(/\{ token = "\$fleet_role"[^\n]*?\] \}/)[0];
+  const rules = [...roleCell.matchAll(/contains = "([^"]+)", fg = "([^"]+)"/g)].map(([, word, fg]) => [word, fg]);
+  assert.deepEqual(rules[0], ['ask', palette.stateFor('dark').blocked]);
+});
+
 test('a pane that stops being a role pane is rewritten', () => {
   const state = require('../lib/state');
   const line = { mark: '⣟', split: '', logo: '✳', titlePrefix: '' };
