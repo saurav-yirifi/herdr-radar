@@ -162,7 +162,9 @@ The title carries the state, and shape carries it too, so the panel still reads 
 Green and red are semantic and outrank branding: they are there to pull the eye, so no vendor
 colour is allowed to be either. A working title takes its vendor's hue rather than one shared
 "busy" colour because with thirty rows on screen the hue is what separates one running session
-from the next before any of them is read.
+from the next before any of them is read. With `fleet_view` on, a role pane (manager, builder,
+dispatcher, executor, relay) is the exception: its working title wears its role's colour, the
+badge's, so the fleet's standing sessions read apart from the lanes (the owner, 2026-10-07).
 
 **Idle is a gradient, not a state.** Once an agent stops, the only question left is how long
 ago, so the title cools with the time since its last turn: the first 15 minutes read as just
