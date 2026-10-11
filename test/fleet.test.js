@@ -126,6 +126,61 @@ test('a fleet-on block from before the role colours and health line is stale, so
   assert.equal(managed.fleetStale(off, true), true);
 });
 
+// The fleet's colour file (sb-herdr-manager supervisor.role_colours): a persona
+// added later gets its own colour, and a start after it rewrites the block.
+function withColours(t, data) {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'radar-colours-'));
+  const file = path.join(dir, 'role-colours.json');
+  fs.writeFileSync(file, typeof data === 'string' ? data : JSON.stringify(data));
+  const was = process.env.HERDR_ROLE_COLOURS_FILE;
+  process.env.HERDR_ROLE_COLOURS_FILE = file;
+  t.after(() => {
+    if (was === undefined) delete process.env.HERDR_ROLE_COLOURS_FILE;
+    else process.env.HERDR_ROLE_COLOURS_FILE = was;
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+}
+
+test('a persona in the fleet colour file wears its colour; a bad entry is skipped', (t) => {
+  withFleet(t, true);
+  withColours(t, {
+    curator: { dark: '#d4b483', light: '#7f6c4e' },
+    'dispatcher-2': { dark: '#123456', light: '#654321' },
+    exec: { dark: '#abcdef', light: '#fedcba' },
+    manager: { dark: '#000000', light: '#000000' },
+    'Bad Name': { dark: '#111111', light: '#111111' },
+    nohex: { dark: 'red', light: '#12' },
+  });
+  const dark = managed.sidebarBlock('dark');
+  assert.match(dark, /contains = "curator", fg = "#d4b483"/);
+  assert.match(managed.sidebarBlock('light'), /contains = "curator", fg = "#7f6c4e"/);
+  // the built-in five keep their tuned hues
+  assert.match(dark, /contains = "manager", fg = "#6aa8ff"/);
+  assert.doesNotMatch(dark, /Bad Name|nohex/);
+  // longest first: a substring rule must not let `dispatcher` catch `dispatcher-2`
+  assert.ok(dark.indexOf('contains = "dispatcher-2"') < dark.indexOf('contains = "dispatcher"'));
+  assert.ok(dark.indexOf('contains = "executor"') < dark.indexOf('contains = "exec"'));
+});
+
+test('a block from before a persona was added is stale, so a start writes its colour', (t) => {
+  withFleet(t, true);
+  const before = managed.block() + managed.sidebarBlock('dark');
+  withColours(t, { curator: { dark: '#d4b483', light: '#7f6c4e' } });
+  assert.equal(managed.fleetStale(before, true), true);
+  assert.equal(managed.fleetStale(managed.block() + managed.sidebarBlock('dark'), true), false);
+});
+
+test('a missing or unreadable colour file leaves the built-in five', (t) => {
+  withFleet(t, true);
+  for (const bad of ['not json', '[1,2]', 'null', '"a"']) {
+    withColours(t, bad);
+    assert.deepEqual(Object.keys(require('../lib/palette').roleFor('dark')).sort(), [...fleet.ROLES].sort(), bad);
+  }
+});
+
 test('an unstamped pane ranks by what it is doing, with no badge', () => {
   assert.deepEqual(fleet.view('working', null, 0), { rank: '4', badge: null });
   assert.deepEqual(fleet.view('done', null, 0), { rank: '4', badge: null });
@@ -395,7 +450,7 @@ test('the role cell reads only a dialog and the role names, so no persona name t
   const rules = [...roleCell.matchAll(/contains = "([^"]+)", fg = "([^"]+)"/g)].map(([, word, fg]) => [word, fg]);
   // a dialog first, in the blocked red, matched with its space so `taskmaster` stays plain
   assert.deepEqual(rules[0], [' ask', palette.stateFor('dark').blocked]);
-  assert.deepEqual(rules.slice(1).map(([word]) => word), fleet.ROLES);
+  assert.deepEqual(rules.slice(1).map(([word]) => word).sort(), [...fleet.ROLES].sort());
   const fires = (name) => rules.filter(([word]) => name.includes(word)).map(([word]) => word);
   for (const name of ['compactor', 'controller', 'tester', 'taskmaster', 'idler', 'owner-desk', 'tray-bot']) {
     assert.deepEqual(fires(name), [], name);
