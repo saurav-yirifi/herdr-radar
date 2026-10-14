@@ -175,6 +175,28 @@ test('a block from before a persona was added is stale, so a start writes its co
   assert.equal(managed.fleetStale(managed.block() + managed.sidebarBlock('dark'), true), false);
 });
 
+test("however many personas the fleet adds, no cell passes Herdr's 16 rules", (t) => {
+  // x1pro-1, 2026-10-14: an eleventh persona (wow-pack) gave the badge 17 rules, and
+  // Herdr refused the whole config ("sidebar tokens may contain at most 16 rules").
+  withFleet(t, true);
+  const many = {};
+  for (let i = 1; i <= 20; i += 1) many[`persona-${i}`] = { dark: '#123456', light: '#654321' };
+  withColours(t, many);
+  for (const variant of ['dark', 'light']) {
+    const block = managed.sidebarBlock(variant);
+    for (const [, rules] of block.matchAll(/rules = \[(.*?)\] \}/g)) {
+      const n = (rules.match(/contains = /g) ?? []).length;
+      assert.ok(n <= 16, `${n} rules in one cell (${variant})`);
+    }
+    // the badge never carries a role pane's word: role panes write fleet_role
+    const badge = block.match(/\{ token = "\$fleet_badge"[^\n]*?\] \}/)[0];
+    assert.doesNotMatch(badge, /persona-|manager|dispatcher/);
+  }
+  // the built-in roles keep their colours ahead of the added ones
+  const roleCell = managed.sidebarBlock('dark').match(/\{ token = "\$fleet_role"[^\n]*?\] \}/)[0];
+  for (const role of fleet.ROLES) assert.match(roleCell, new RegExp(`contains = "${role}"`), role);
+});
+
 test('a missing or unreadable colour file leaves the built-in five', (t) => {
   withFleet(t, true);
   for (const bad of ['not json', '[1,2]', 'null', '"a"']) {
