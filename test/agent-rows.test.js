@@ -43,14 +43,13 @@ test('at home a header drops the machine and carries the account; elsewhere it k
     });
     assert.equal(writes.get('w1:p1').group, `axi-onboarding cw${host}  ■1`);
     assert.equal(writes.get('w2:p1').group, `revoxy cl${host}`);
-    // the header carries the head's account; line 2 carries it only where no header does
-    assert.equal(writes.get('w1:p1').acct_row, null);
-    assert.equal(writes.get('w2:p2').acct_row, 'cw2');
+    // line 2's account is the frame's (fleetJobs), not the header writer's
+    assert.ok(!('acct_row' in writes.get('w1:p1')));
     t.mock.restoreAll();
   }
 });
 
-test("the services header carries no account, so each role row keeps its own on line 2", async (t) => {
+test('the services header carries no account', async (t) => {
   t.mock.property(config, 'fleetView', true);
   t.mock.property(config, 'machineLabel', 'x1pro-1');
   t.mock.property(config, 'fleetHome', 'x1pro-1');
@@ -59,7 +58,6 @@ test("the services header carries no account, so each role row keeps its own on 
     services: new Set(['w5']),
   });
   assert.equal(writes.get('w5:p1').group, 'SERVICES · x1pro-1');
-  assert.equal(writes.get('w5:p1').acct_row, 'cl');
 });
 
 test('a worktree header carries its account too; its branch tag rides the work row', async (t) => {
@@ -142,7 +140,58 @@ test('a branch tag only for a session with work on its row and off main, cut to 
 test('the managed block: the account cell is the row cell, the work row has the branch, an old block is stale', () => {
   const block = managed.sidebarBlock('dark');
   assert.ok(block.includes('"$acct_row"'));
+  for (const tier of ['ok', 'near', 'over']) {
+    assert.ok(block.includes(`"$size_${tier}"`), tier);
+    assert.ok(!block.includes(`"$ctx_${tier}"`), tier);
+  }
+  assert.equal(managed.fleetStale(block.replaceAll('$size_', '$ctx_'), true), true, 'a block from before the packing is stale');
   assert.ok(!block.includes('"$acct"'));
   assert.ok(block.includes('"$work_branch"'));
   assert.equal(managed.fleetStale(block.replaceAll('$acct_row', '$acct'), true), true);
+});
+
+// Item 8 (the CEO, 2026-10-14 ~08:1xZ, manager pane: "item8 b"): the size and the
+// account share one cell, so Herdr draws no ` · ` between them.
+test("the snapshot reads the size and its tier from the supervisor's ctx names", async (t) => {
+  t.mock.property(config, 'fleetView', true);
+  for (const [tokens, want] of [
+    [{ ctx_near: '186k' }, { tier: 'near', size: '186k' }],
+    [{ ctx_over: '240k', ctx_ok: '' }, { tier: 'over', size: '240k' }],
+    [{}, null],
+  ]) {
+    t.mock.method(herdr, 'agentsAsync', async () => [agent(tokens)]);
+    const [entry] = await state.snapshot();
+    assert.deepEqual(entry.ctx, want);
+  }
+});
+
+test('the size cell packs the account where no header carries it; with no size the account stands alone', () => {
+  const sized = { acct: 'cl', ctx: { tier: 'near', size: '186k' } };
+  assert.deepEqual(state.sizeTokens(sized, true), { acct_row: null, size_ok: null, size_near: '186k cl', size_over: null });
+  assert.deepEqual(state.sizeTokens(sized, false), { acct_row: null, size_ok: null, size_near: '186k', size_over: null });
+  assert.deepEqual(state.sizeTokens({ acct: 'cw2', ctx: null }, true), { acct_row: 'cw2', size_ok: null, size_near: null, size_over: null });
+  assert.deepEqual(state.sizeTokens({ acct: 'cw2', ctx: null }, false).acct_row, null);
+  assert.deepEqual(state.sizeTokens({ acct: null, ctx: { tier: 'ok', size: '40k' } }, true).size_ok, '40k');
+});
+
+test('fleetJobs writes the packed cell, and rewrites it when the size moves', async (t) => {
+  t.mock.property(config, 'fleetView', true);
+  const { Frame } = require('../lib/frame');
+  const frame = new Frame('test');
+  const writes = capture(t);
+  const entry = { pane: 'w5:p2', workspace: 'w5', fleet: '8|role|builder', acct: 'cw2', ctx: { tier: 'ok', size: '90k' } };
+  const run = async (withAcct) => {
+    const jobs = [];
+    frame.fleetJobs(entry, 'idle', Date.now(), [], jobs, null, '', withAcct);
+    await Promise.all(jobs);
+    return jobs.length;
+  };
+  await run(true);
+  assert.equal(writes.get('w5:p2').size_ok, '90k cw2');
+  assert.equal(writes.get('w5:p2').acct_row, null);
+  assert.equal(await run(true), 0, 'nothing moved, nothing written');
+  entry.ctx = { tier: 'over', size: '235k' };
+  await run(true);
+  assert.equal(writes.get('w5:p2').size_ok, null);
+  assert.equal(writes.get('w5:p2').size_over, '235k cw2');
 });
