@@ -307,8 +307,9 @@ test("with the fleet view on, the badge and the work share one row under the tit
     [palette.stateFor('light').idleNormal, palette.brand.other, palette.stateFor('light').blocked], 'each CI tier in its own colour');
   assert.match(work[0], /"\$work_red", fg = "[^"]+", bold = true/, 'failing CI is bold');
   assert.ok(agentRow.indexOf(badge[0]) < agentRow.indexOf('["$gap"]'), 'and before the gap');
-  // The account (2026-10-14): one second-rank cell after the size, in front of the title.
-  const acct = on.match(/, \{ token = "\$acct"[^}]*\}/g) ?? [];
+  // The account (2026-10-14): one second-rank cell after the size, in front of the title,
+  // `acct_row` since the header carries it on a lane (round 2).
+  const acct = on.match(/, \{ token = "\$acct_row"[^}]*\}/g) ?? [];
   assert.ok(acct.length > 0, 'no account cell in the block');
   assert.equal(new Set(acct).size, 1, 'the same account cell on every entry');
   assert.ok(title.indexOf(acct[0]) > title.indexOf(ctx[0]) && title.indexOf(acct[0]) < title.indexOf('$title_working'),

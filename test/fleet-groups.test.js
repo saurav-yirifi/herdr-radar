@@ -256,9 +256,9 @@ test("with the fleet view on, a family's top header carries its rollup and a wor
       ['repo:vedtara-astro', '✓2'],
     ]),
   });
-  assert.equal(writes.get('w1:p1').group, 'sb-herdr-manager (x1pro-1)  ■1 ◐1');
+  assert.equal(writes.get('w1:p1').group, 'sb-herdr-manager  ■1 ◐1');
   assert.ok(!writes.get('w2:p1').group.includes('■'), 'a worktree under its header carries no rollup');
-  assert.equal(writes.get('w3:p1').group_parent, 'vedtara-astro (x1pro-1)  ✓2');
+  assert.equal(writes.get('w3:p1').group_parent, 'vedtara-astro  ✓2');
 });
 
 test('rollup counts needs-you, working, waiting and done, worst first; an owner stamp outranks done', () => {
@@ -302,14 +302,14 @@ test('a rollup that moves rewrites only the head rows of its family; an unchange
     frame.groupJobs(entries, entries, 'fleet', true, new Map([['w1', w1], ['w3', [{ display: 'done' }]]]), labels, keys, 0, []);
   await run([{ display: 'working' }, { display: 'idle' }]);
   assert.equal(writes.length, 3, 'the first layout writes every row');
-  assert.equal(writes[0][1].group, 'sb-herdr-manager (x1pro-1)  ◐1 ○1');
+  assert.equal(writes[0][1].group, 'sb-herdr-manager  ◐1 ○1');
   writes.length = 0;
   await run([{ display: 'idle_fresh' }, { display: 'working' }]);
   assert.equal(writes.length, 0, 'same counts, nothing written');
   await run([{ display: 'working' }, { display: 'working' }]);
   assert.deepEqual(
     writes.map(([pane, tokens]) => [pane, tokens.group]),
-    [['w1:p1', 'sb-herdr-manager (x1pro-1)  ◐2']],
+    [['w1:p1', 'sb-herdr-manager  ◐2']],
     "only w1's head row is rewritten",
   );
 });
@@ -393,6 +393,6 @@ test('the services head reads SERVICES with its machine and rollup; its old lane
     ]),
   });
   assert.equal(writes.get('w5:p1').group, 'SERVICES · x1pro-1  ◐1 ○1');
-  assert.equal(writes.get('wQ:p1').group_parent, 'sb-herdr-manager (x1pro-1)  ■1');
+  assert.equal(writes.get('wQ:p1').group_parent, 'sb-herdr-manager  ■1');
   assert.equal(writes.get('w5:p2').group, null, 'a member row carries no header');
 });
