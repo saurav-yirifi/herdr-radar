@@ -167,6 +167,8 @@ test('a persona in the fleet colour file wears its colour; a bad entry is skippe
 
 test('a block from before a persona was added is stale, so a start writes its colour', (t) => {
   withFleet(t, true);
+  // the machine's own colour file may already name curator: start from none
+  withColours(t, {});
   const before = managed.block() + managed.sidebarBlock('dark');
   withColours(t, { curator: { dark: '#d4b483', light: '#7f6c4e' } });
   assert.equal(managed.fleetStale(before, true), true);
@@ -283,6 +285,13 @@ test("with the fleet view on, the badge and the work share one row under the tit
     [palette.stateFor('light').idleNormal, palette.brand.other, palette.stateFor('light').blocked], 'each CI tier in its own colour');
   assert.match(work[0], /"\$work_red", fg = "[^"]+", bold = true/, 'failing CI is bold');
   assert.ok(agentRow.indexOf(badge[0]) < agentRow.indexOf('["$gap"]'), 'and before the gap');
+  // The account (2026-10-14): one second-rank cell after the size, in front of the title.
+  const acct = on.match(/, \{ token = "\$acct"[^}]*\}/g) ?? [];
+  assert.ok(acct.length > 0, 'no account cell in the block');
+  assert.equal(new Set(acct).size, 1, 'the same account cell on every entry');
+  assert.ok(title.indexOf(acct[0]) > title.indexOf(ctx[0]) && title.indexOf(acct[0]) < title.indexOf('$title_working'),
+    'the account sits after the size and in front of the title');
+  assert.match(acct[0], new RegExp(`fg = "${palette.stateFor('light').subtle}"`), 'second-rank ink');
   // A role pane's word leads its title row, after the tree corner and before the logo.
   const role = on.match(/, \{ token = "\$fleet_role"[^\n]*?\] \}/g) ?? [];
   assert.ok(role.length > 0, 'no role word in the block');
@@ -302,16 +311,16 @@ test("with the fleet view on, the badge and the work share one row under the tit
   assert.ok(tinted('revoxy (mac-1)') && tinted('SERVICES · mac-2'), 'a Mac is not tinted');
   assert.ok(!tinted('mac-notes (x1pro-1)') && !tinted('SERVICES · x1pro-1'), 'x1pro-1 is tinted');
   assert.equal(
-    on.split(badge[0]).join('').split(ctx[0]).join('').split(role[0]).join('').replace(hold, '').replace(tint, ''),
+    on.split(badge[0]).join('').split(ctx[0]).join('').split(acct[0]).join('').split(role[0]).join('').replace(hold, '').replace(tint, ''),
     off,
-    'the badge and work row, the context cells, the role word, the hold row and the machine tint are the only differences',
+    'the badge and work row, the context cells, the account, the role word, the hold row and the machine tint are the only differences',
   );
   // sidebarBlock throws when a row passes the limit; this is the count it checks.
   const count = (block) => {
     const row = block.split('\n').find((line) => line.startsWith('rows = ['));
     return (row.split('], [')[2].match(/token = "/g) ?? []).length;
   };
-  assert.equal(count(on), count(off) + 4); // the role word and the three context tiers; the badge left the title row
+  assert.equal(count(on), count(off) + 5); // the role word, the three context tiers and the account; the badge left the title row
   assert.ok(count(on) <= 16, `${count(on)} tokens on the agent row`);
 });
 
@@ -350,13 +359,14 @@ test('an idle badge wakes the frame when its age word changes', (t) => {
   assert.deepEqual(deadlines, [now + 5 * MIN]);
 });
 
-test('a role pane carries no title in any state; a lane keeps its title', () => {
+test('a role pane carries its state icon and no title in every state; a lane keeps its title', () => {
   const state = require('../lib/state');
-  const line = { mark: '⣟', split: '', logo: '✳', titlePrefix: '' };
+  const line = { mark: '⣟', split: '', logo: '✳', titlePrefix: '', icon: '⣟' };
   for (const display of ['working', 'done', 'blocked', 'idle', 'idle_stale']) {
     const role = state.stateTokens(display, line, 'X1 Pro manager handover', 'manager');
     const titles = Object.entries(role).filter(([name, value]) => name.startsWith('title_') && value !== null);
-    assert.deepEqual(titles, [], display);
+    // the icon alone, under the state's own name so it wears the state's colour
+    assert.deepEqual(titles, [[`title_${display}`, '⣟']], display);
     assert.equal(role.logo_working ?? role.logo ?? role.logo_stale, '✳', `${display} keeps its logo`);
   }
   const lane = state.stateTokens('working', line, 'Implement OAuth scopes', null);
@@ -395,7 +405,7 @@ test('roleOf names only a known role from a role token', () => {
   assert.equal(fleet.roleOf(undefined), null);
 });
 
-test('a role pane at its tree depth: the word takes the indent the logo carried, unless a corner leads', async (t) => {
+test('a role pane at its tree depth: the word takes the indent the logo carried, and the corner', async (t) => {
   withFleet(t, true);
   const state = require('../lib/state');
   const writes = [];
@@ -416,16 +426,20 @@ test('a role pane at its tree depth: the word takes the indent the logo carried,
   let jobs = [];
   frame.fleetJobs(entry, 'idle', 1000, [], jobs, undefined, head.margin);
   await Promise.all(jobs);
-  // a member: the corner leads and carries the indent, the word none
+  // a member: the word carries the indent and the corner, in one cell, so no
+  // separator dot falls between them (the CEO, 2026-10-14); a lane keeps its corner cell
   const member = state.composeLine(entry, 'idle', '', indent, 0, '├─ ');
-  assert.equal(state.stateTokens('idle', member, 'T', 'manager').logo, member.logo);
+  const tokens = state.stateTokens('idle', member, 'T', 'manager');
+  assert.equal(tokens.logo, member.logo);
+  assert.equal(tokens.split_mark, null, 'no corner cell on a role pane');
+  assert.equal(state.stateTokens('idle', member, 'T', null).split_mark, member.split, 'a lane keeps it');
   jobs = [];
   frame.fleetJobs({ ...entry, pane: 'w5:p2' }, 'idle', 1000, [], jobs, undefined, member.margin);
   await Promise.all(jobs);
-  assert.deepEqual(writes, [`${indent}manager`, 'manager']);
+  assert.deepEqual(writes, [`${indent}manager`, `${indent}├─ manager`]);
 });
 
-test('a role note the plugin does not know is still a role pane: no title, the word takes the indent', async (t) => {
+test('a role note the plugin does not know is still a role pane: an icon, no title, the word takes the indent', async (t) => {
   withFleet(t, true);
   const state = require('../lib/state');
   const sent = {};
@@ -439,7 +453,7 @@ test('a role note the plugin does not know is still a role pane: no title, the w
   frame.paneJobs(entry, 'idle', { tabs: new Map(), keys, indent, spinStep: 0 }, 1000, [], jobs);
   await Promise.all(jobs);
   assert.equal(sent.fleet_role, `${indent}role`);
-  assert.equal(sent.title_idle, null);
+  assert.equal(sent.title_idle, state.composeLine(entry, 'idle', '', indent, 0, '').icon, 'its state icon, no title');
   assert.ok(sent.logo && !sent.logo.startsWith(indent), 'the logo gave its indent to the word');
 });
 
