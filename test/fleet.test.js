@@ -112,9 +112,9 @@ test('a fleet-on block from before the role colours and health line is stale, so
   assert.equal(managed.fleetStale(older, true), true);
   assert.equal(managed.fleetStale(current.replace(/.*fleet-health.*\n/, ''), true), true);
   // and one from before the context gauge (row 4)
-  assert.equal(managed.fleetStale(current.replace(/, \{ token = "\$ctx_ok"[^}]*\}/g, ''), true), true);
+  assert.equal(managed.fleetStale(current.replace(/, \{ token = "\$size_ok"[^}]*\}/g, ''), true), true);
   // and one with the older gauge row of its own (a row that starts at the size)
-  assert.equal(managed.fleetStale(current.replace(/, \{ token = "\$ctx_ok"/g, '], [{ token = "$ctx_ok"'), true), true);
+  assert.equal(managed.fleetStale(current.replace(/, \{ token = "\$size_ok"/g, '], [{ token = "$size_ok"'), true), true);
   // and one from before the work cells (row 9)
   assert.equal(managed.fleetStale(current.replace(/, \{ token = "\$work_ok".*?\}\], /g, '], '), true), true);
   // and one with the work on a row of its own, under the badge's
@@ -285,18 +285,18 @@ test("with the fleet view on, the badge and the work share one row under the tit
   assert.ok(agentRow.indexOf(badge[0]) > agentRow.indexOf('$title_unknown'), 'the badge row comes after the title row');
   // The context size (row 4): three tier cells inside the title row, in front of the title,
   // never a row of its own (the person, 2026-10-07: the bar's row wasted a line).
-  const ctx = on.match(/, \{ token = "\$ctx_ok"[^}]*\}, \{ token = "\$ctx_near"[^}]*\}, \{ token = "\$ctx_over"[^}]*\}/g) ?? [];
+  const ctx = on.match(/, \{ token = "\$size_ok"[^}]*\}, \{ token = "\$size_near"[^}]*\}, \{ token = "\$size_over"[^}]*\}/g) ?? [];
   assert.ok(ctx.length > 0, 'no context cells in the block');
   assert.equal(new Set(ctx).size, 1, 'the same context cells on every entry');
-  assert.ok(!/\[\{ token = "\$ctx_/.test(on), 'no row starts at the context size');
+  assert.ok(!/\[\{ token = "\$size_/.test(on), 'no row starts at the context size');
   const title = on.split('\n').find((l) => l.includes(ctx[0]));
   assert.ok(title.indexOf(ctx[0]) > title.indexOf('$logo_stale') && title.indexOf(ctx[0]) < title.indexOf('$title_working'),
     'the size sits after the logo and in front of the title');
   const palette = require('../lib/palette');
-  const fg = (tier) => ctx[0].match(new RegExp(`"\\$ctx_${tier}", fg = "([^"]+)"`))[1];
+  const fg = (tier) => ctx[0].match(new RegExp(`"\\$size_${tier}", fg = "([^"]+)"`))[1];
   assert.deepEqual([fg('ok'), fg('near'), fg('over')],
     [palette.stateFor('light').done, palette.brand.other, palette.stateFor('light').blocked], 'each tier in its own colour');
-  assert.match(ctx[0], /"\$ctx_over", fg = "[^"]+", bold = true/, 'over is bold');
+  assert.match(ctx[0], /"\$size_over", fg = "[^"]+", bold = true/, 'over is bold');
   // The lane's work (row 9): ticket, PR and CI, three CI tiers, on the badge's row after the
   // badge (the person, 2026-10-07: a row each was "wasting lines").
   const work = badge[0].match(/, \{ token = "\$work_ok"[^\n]*?"\$work_wait"[^\n]*?"\$work_red"[^\n]*?\}/g) ?? [];
@@ -364,7 +364,7 @@ test('the frame writes the rank and badge once, and again only when they change'
   await run('idle');
   await run('idle');
   await run('working');
-  const none = { fleet_role: null, fleet_ws_key: null, fleet_row_key: null };
+  const none = { fleet_role: null, fleet_ws_key: null, fleet_row_key: null, acct_row: null, size_ok: null, size_near: null, size_over: null };
   assert.deepEqual(writes, [
     ['w5:p1', { fleet_rank: '2', fleet_badge: 'owner', ...none }],
     ['w5:p1', { fleet_rank: '4', fleet_badge: null, ...none }],
