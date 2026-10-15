@@ -8,6 +8,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 
 const config = require('../lib/config');
 const fleet = require('../lib/fleet');
@@ -70,7 +74,14 @@ test('a role pane names its persona, listed or not; a note that is no name reads
   assert.deepEqual(fleet.view('idle', '8|role|compactor', 0), { rank: '8', badge: 'compactor', role: true });
   assert.deepEqual(fleet.view('blocked', '8|role|qa-lead', 0), { rank: '8', badge: 'qa-lead ask', role: true });
   // `ask-bot` behind an indent would contain the dialog's ` ask`
-  for (const odd of ['8|role', '8|role|', '8|role|Two Words', '8|role|x;rm', `8|role|${'a'.repeat(30)}`, '8|role|ask-bot']) {
+  for (const odd of [
+    '8|role',
+    '8|role|',
+    '8|role|Two Words',
+    '8|role|x;rm',
+    `8|role|${'a'.repeat(30)}`,
+    '8|role|ask-bot',
+  ]) {
     assert.deepEqual(fleet.view('idle', odd, 0), { rank: '8', badge: 'role', role: true }, odd);
   }
 });
@@ -104,6 +115,34 @@ test('with the fleet view on, the tab bar also shows the manager health line; of
   assert.doesNotMatch(managed.block(), /fleet-health/);
 });
 
+test("with the fleet view on, the health line is the bar's one segment; a line 45 min old says it is stale", (t) => {
+  // the CEO, 2026-10-15 (YIR-2329): "we dont have space to see the panes, the top items
+  // are not reall adding value". A line its writer stopped refreshing read `watch ✗ DOWN`
+  // for hours while the watch was live, its time cut off at the bar's edge.
+  if (process.platform === 'win32') return;
+  withFleet(t, true);
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'radar-bar-'));
+  const was = process.env.HOME;
+  process.env.HOME = home;
+  t.after(() => {
+    process.env.HOME = was;
+  });
+  const block = managed.block();
+  assert.doesNotMatch(block, /tabbar\.txt/);
+  const command = block.match(/command = '([^']*fleet-health[^']*)'/)[1];
+  const bar = () => execFileSync('sh', ['-c', command], { encoding: 'utf8' }).trim();
+  assert.equal(bar(), '', 'no file here: nothing shown');
+  fs.mkdirSync(path.join(home, '.herdr'));
+  const file = path.join(home, '.herdr', 'fleet-health.txt');
+  fs.writeFileSync(file, 'watch ✗ DOWN · 07:44Z\n');
+  assert.equal(bar(), 'watch ✗ DOWN · 07:44Z');
+  const old = new Date(Date.UTC(2026, 9, 15, 7, 44));
+  fs.utimesSync(file, old, old);
+  assert.equal(bar(), 'bar stale since 07:44Z');
+  config.fleetView = false;
+  assert.match(managed.block(), /tabbar\.txt/);
+});
+
 test('a fleet-on block from before the role colours and health line is stale, so a start rewrites it', (t) => {
   withFleet(t, true);
   const current = managed.block() + managed.sidebarBlock('dark');
@@ -111,14 +150,22 @@ test('a fleet-on block from before the role colours and health line is stale, so
   const older = current.replace(/\{ contains = "manager"[^}]*\},?/, '').replace(/.*fleet-health.*\n/, '');
   assert.equal(managed.fleetStale(older, true), true);
   assert.equal(managed.fleetStale(current.replace(/.*fleet-health.*\n/, ''), true), true);
+  // and one whose bar still carries the radar's own segment, with no stale check
+  assert.equal(managed.fleetStale(current.replace('bar stale since', ''), true), true);
   // and one from before the context gauge (row 4)
   assert.equal(managed.fleetStale(current.replace(/, \{ token = "\$size_ok"[^}]*\}/g, ''), true), true);
   // and one with the older gauge row of its own (a row that starts at the size)
-  assert.equal(managed.fleetStale(current.replace(/, \{ token = "\$size_ok"/g, '], [{ token = "$size_ok"'), true), true);
+  assert.equal(
+    managed.fleetStale(current.replace(/, \{ token = "\$size_ok"/g, '], [{ token = "$size_ok"'), true),
+    true,
+  );
   // and one from before the work cells (row 9)
   assert.equal(managed.fleetStale(current.replace(/, \{ token = "\$work_ok".*?\}\], /g, '], '), true), true);
   // and one with the work on a row of its own, under the badge's
-  assert.equal(managed.fleetStale(current.replace(/, \{ token = "\$work_ok"/g, '], [{ token = "$work_ok"'), true), true);
+  assert.equal(
+    managed.fleetStale(current.replace(/, \{ token = "\$work_ok"/g, '], [{ token = "$work_ok"'), true),
+    true,
+  );
   config.fleetView = false;
   const off = managed.block() + managed.sidebarBlock('dark');
   assert.equal(managed.fleetStale(off, false), false);
@@ -285,17 +332,24 @@ test("with the fleet view on, the badge and the work share one row under the tit
   assert.ok(agentRow.indexOf(badge[0]) > agentRow.indexOf('$title_unknown'), 'the badge row comes after the title row');
   // The context size (row 4): three tier cells inside the title row, in front of the title,
   // never a row of its own (the person, 2026-10-07: the bar's row wasted a line).
-  const ctx = on.match(/, \{ token = "\$size_ok"[^}]*\}, \{ token = "\$size_near"[^}]*\}, \{ token = "\$size_over"[^}]*\}/g) ?? [];
+  const ctx =
+    on.match(/, \{ token = "\$size_ok"[^}]*\}, \{ token = "\$size_near"[^}]*\}, \{ token = "\$size_over"[^}]*\}/g) ??
+    [];
   assert.ok(ctx.length > 0, 'no context cells in the block');
   assert.equal(new Set(ctx).size, 1, 'the same context cells on every entry');
   assert.ok(!/\[\{ token = "\$size_/.test(on), 'no row starts at the context size');
   const title = on.split('\n').find((l) => l.includes(ctx[0]));
-  assert.ok(title.indexOf(ctx[0]) > title.indexOf('$logo_stale') && title.indexOf(ctx[0]) < title.indexOf('$title_working'),
-    'the size sits after the logo and in front of the title');
+  assert.ok(
+    title.indexOf(ctx[0]) > title.indexOf('$logo_stale') && title.indexOf(ctx[0]) < title.indexOf('$title_working'),
+    'the size sits after the logo and in front of the title',
+  );
   const palette = require('../lib/palette');
   const fg = (tier) => ctx[0].match(new RegExp(`"\\$size_${tier}", fg = "([^"]+)"`))[1];
-  assert.deepEqual([fg('ok'), fg('near'), fg('over')],
-    [palette.stateFor('light').done, palette.brand.other, palette.stateFor('light').blocked], 'each tier in its own colour');
+  assert.deepEqual(
+    [fg('ok'), fg('near'), fg('over')],
+    [palette.stateFor('light').done, palette.brand.other, palette.stateFor('light').blocked],
+    'each tier in its own colour',
+  );
   assert.match(ctx[0], /"\$size_over", fg = "[^"]+", bold = true/, 'over is bold');
   // The lane's work (row 9): ticket, PR and CI, three CI tiers, on the badge's row after the
   // badge (the person, 2026-10-07: a row each was "wasting lines").
@@ -303,8 +357,11 @@ test("with the fleet view on, the badge and the work share one row under the tit
   assert.equal(work.length, 1, 'no work cells after the badge');
   assert.ok(badge[0].indexOf('$fleet_badge') < badge[0].indexOf('$work_ok'), 'the badge before the work');
   const wfg = (tier) => work[0].match(new RegExp(`"\\$work_${tier}", fg = "([^"]+)"`))[1];
-  assert.deepEqual([wfg('ok'), wfg('wait'), wfg('red')],
-    [palette.stateFor('light').idleNormal, palette.brand.other, palette.stateFor('light').blocked], 'each CI tier in its own colour');
+  assert.deepEqual(
+    [wfg('ok'), wfg('wait'), wfg('red')],
+    [palette.stateFor('light').idleNormal, palette.brand.other, palette.stateFor('light').blocked],
+    'each CI tier in its own colour',
+  );
   assert.match(work[0], /"\$work_red", fg = "[^"]+", bold = true/, 'failing CI is bold');
   assert.ok(agentRow.indexOf(badge[0]) < agentRow.indexOf('["$gap"]'), 'and before the gap');
   // The account (2026-10-14): one second-rank cell after the size, in front of the title,
@@ -312,15 +369,19 @@ test("with the fleet view on, the badge and the work share one row under the tit
   const acct = on.match(/, \{ token = "\$acct_row"[^}]*\}/g) ?? [];
   assert.ok(acct.length > 0, 'no account cell in the block');
   assert.equal(new Set(acct).size, 1, 'the same account cell on every entry');
-  assert.ok(title.indexOf(acct[0]) > title.indexOf(ctx[0]) && title.indexOf(acct[0]) < title.indexOf('$title_working'),
-    'the account sits after the size and in front of the title');
+  assert.ok(
+    title.indexOf(acct[0]) > title.indexOf(ctx[0]) && title.indexOf(acct[0]) < title.indexOf('$title_working'),
+    'the account sits after the size and in front of the title',
+  );
   assert.match(acct[0], new RegExp(`fg = "${palette.stateFor('light').subtle}"`), 'second-rank ink');
   // A role pane's word leads its title row, after the tree corner and before the logo.
   const role = on.match(/, \{ token = "\$fleet_role"[^\n]*?\] \}/g) ?? [];
   assert.ok(role.length > 0, 'no role word in the block');
   assert.equal(new Set(role).size, 1, 'the same role cell on every entry');
-  assert.ok(title.indexOf(role[0]) > title.indexOf('$split_mark') && title.indexOf(role[0]) < title.indexOf('"$logo"'),
-    'the role word sits after the corner and in front of the logo');
+  assert.ok(
+    title.indexOf(role[0]) > title.indexOf('$split_mark') && title.indexOf(role[0]) < title.indexOf('"$logo"'),
+    'the role word sits after the corner and in front of the logo',
+  );
   assert.doesNotMatch(on, /title_role/);
   // and the Spaces panel's third row, the lane's hold (fleet view row 10)
   const hold = /,\n {2}\[\n {4}\{ token = "\$lane_hold"[^\n]*\}\n {2}\]/;
@@ -334,7 +395,17 @@ test("with the fleet view on, the badge and the work share one row under the tit
   assert.ok(tinted('revoxy (mac-1)') && tinted('SERVICES · mac-2'), 'a Mac is not tinted');
   assert.ok(!tinted('mac-notes (x1pro-1)') && !tinted('SERVICES · x1pro-1'), 'x1pro-1 is tinted');
   assert.equal(
-    on.split(badge[0]).join('').split(ctx[0]).join('').split(acct[0]).join('').split(role[0]).join('').replace(hold, '').replace(tint, ''),
+    on
+      .split(badge[0])
+      .join('')
+      .split(ctx[0])
+      .join('')
+      .split(acct[0])
+      .join('')
+      .split(role[0])
+      .join('')
+      .replace(hold, '')
+      .replace(tint, ''),
     off,
     'the badge and work row, the context cells, the account, the role word, the hold row and the machine tint are the only differences',
   );
@@ -364,7 +435,15 @@ test('the frame writes the rank and badge once, and again only when they change'
   await run('idle');
   await run('idle');
   await run('working');
-  const none = { fleet_role: null, fleet_ws_key: null, fleet_row_key: null, acct_row: null, size_ok: null, size_near: null, size_over: null };
+  const none = {
+    fleet_role: null,
+    fleet_ws_key: null,
+    fleet_row_key: null,
+    acct_row: null,
+    size_ok: null,
+    size_near: null,
+    size_over: null,
+  };
   assert.deepEqual(writes, [
     ['w5:p1', { fleet_rank: '2', fleet_badge: 'owner', ...none }],
     ['w5:p1', { fleet_rank: '4', fleet_badge: null, ...none }],
@@ -487,7 +566,13 @@ test('the role cell reads only a dialog and the role names, so no persona name t
   const rules = [...roleCell.matchAll(/contains = "([^"]+)", fg = "([^"]+)"/g)].map(([, word, fg]) => [word, fg]);
   // a dialog first, in the blocked red, matched with its space so `taskmaster` stays plain
   assert.deepEqual(rules[0], [' ask', palette.stateFor('dark').blocked]);
-  assert.deepEqual(rules.slice(1).map(([word]) => word).sort(), [...fleet.ROLES].sort());
+  assert.deepEqual(
+    rules
+      .slice(1)
+      .map(([word]) => word)
+      .sort(),
+    [...fleet.ROLES].sort(),
+  );
   const fires = (name) => rules.filter(([word]) => name.includes(word)).map(([word]) => word);
   for (const name of ['compactor', 'controller', 'tester', 'taskmaster', 'idler', 'owner-desk', 'tray-bot']) {
     assert.deepEqual(fires(name), [], name);
@@ -505,16 +590,16 @@ test('a pane that stops being a role pane is rewritten', () => {
 
 test('a fleet-on block from before the role line (role title, owner row) is stale', (t) => {
   withFleet(t, true);
-  const block = `${managed.sidebarBlock('dark')}\nfleet-health.txt`;
+  const block = `${managed.sidebarBlock('dark')}\n${managed.block()}`;
   assert.equal(managed.fleetStale(block, true), false);
   assert.equal(managed.fleetStale(block.split('$fleet_role').join('$title_role'), true), true);
   // and one from before any persona named its row, whose role cell carried the badge's rules
   assert.equal(managed.fleetStale(block.split('contains = " ask"').join('contains = "ask"'), true), true);
 });
 
-test("a fleet-on block with the badge still in the title row is stale, so a start rewrites it", (t) => {
+test('a fleet-on block with the badge still in the title row is stale, so a start rewrites it', (t) => {
   withFleet(t, true);
-  const block = `${managed.sidebarBlock('dark')}\nfleet-health.txt`;
+  const block = `${managed.sidebarBlock('dark')}\n${managed.block()}`;
   assert.equal(managed.fleetStale(block, true), false);
   const older = block.split('[{ token = "$fleet_badge"').join('{ token = "$fleet_badge"');
   assert.equal(managed.fleetStale(older, true), true);
