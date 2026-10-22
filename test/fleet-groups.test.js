@@ -512,3 +512,16 @@ test('NEEDS YOU is one section on top: the rows have no lead and run oldest firs
   assert.equal(fleet.needWord('YOU', 'devops', 3 * 3600000), '■ YOU devops 3h');
   assert.equal(fleet.needWord('ASK', 'devops', 60000), '■ ASK devops');
 });
+
+test('a lane is judged on the status the frame will draw: the idle grace and a held ask count', (t) => {
+  const frame = new Frame('test');
+  t.mock.property(config, 'idleGraceMs', 1000);
+  const entry = { pane: 'p1', status: 'idle' };
+  frame.previous.set('p1', 'working');
+  frame.lastWorkingAt.set('p1', 9500);
+  assert.equal(frame.needStatus(entry, 10000), 'working', 'a turn that just ended is still working');
+  assert.equal(frame.needStatus(entry, 12000), 'idle');
+  frame.blockedSince.set('p1', 1);
+  assert.equal(frame.needStatus(entry, 12000), 'blocked', 'a held ask stays an ask');
+  assert.equal(frame.needStatus({ pane: 'p1', status: 'working' }, 12000), 'working');
+});
