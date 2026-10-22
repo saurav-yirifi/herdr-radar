@@ -460,3 +460,68 @@ test('a flat section has no lead row: every pane, the first too, hangs off its h
     ],
   );
 });
+
+test('NEEDS YOU takes asks and owner lanes waiting on the person; a lane waiting on someone else stays out', () => {
+  const verb = (status, token, title) => fleet.needVerb(status, token, title);
+  assert.equal(verb('blocked', null, ''), 'ASK', 'a live dialog');
+  assert.equal(verb('idle', '1|ask', ''), 'ASK');
+  assert.equal(verb('working', '2|owner|YIR-1', 'asks: x'), null, 'working outranks the stamp');
+  assert.equal(verb('idle', '2|owner|YIR-1694', 'asks: YIR-1646 relayed text is cut'), 'ASK');
+  assert.equal(verb('idle', '2|owner|YIR-3526', 'blocked: the production steps for YIR-12'), 'BLOCKED');
+  assert.equal(verb('idle', '2|owner|YIR-2756', ''), 'YOU', 'no report: the owner stamp stands');
+  assert.equal(verb('idle', '2|owner|YIR-1', 'waiting on: the CEO to merge'), 'YOU');
+  assert.equal(verb('idle', '2|owner|YIR-3528', 'waiting on: backend team: a non-author approval'), null);
+  assert.equal(verb('idle', '2|owner|YIR-1767', 'waiting on: the manager to re-parent YIR-3456'), null);
+  assert.equal(verb('idle', '2|owner|YIR-3344', 'waiting on: herdr-build to close pane'), null);
+  assert.equal(verb('idle', '4|use', ''), null);
+  assert.equal(verb('idle', '8|role|manager', ''), null);
+});
+
+test('NEEDS YOU is one section on top: the rows have no lead and run oldest first', () => {
+  const labels = new Map([['w1', 'devops'], ['w2', 'herdr-e2e'], ['w3', 'idle-proj']]);
+  const moved = fleet.needsYou(
+    [
+      { pane: 'w1:p1', workspace: 'w1', status: 'idle', fleet: '2|owner|YIR-1', title: '' },
+      { pane: 'w2:p1', workspace: 'w2', status: 'blocked', fleet: null, title: '' },
+      { pane: 'w3:p1', workspace: 'w3', status: 'idle', fleet: '5|idle', title: '' },
+    ],
+    labels,
+  );
+  assert.deepEqual(
+    moved.entries.map((e) => [e.workspace, e.need, e.project, e.realWorkspace]),
+    [['~you', 'YOU', 'devops', 'w1'], ['~you', 'ASK', 'herdr-e2e', 'w2'], ['w3', undefined, undefined, undefined]],
+  );
+  const rows = [
+    { pane: 'w1:p1', workspace: '~you', rank: '2', minute: '000000000100' },
+    { pane: 'w2:p1', workspace: '~you', rank: '1', minute: '000000000900' },
+    { pane: 'w9:p1', workspace: 'w9', rank: '3', minute: '000000000999' },
+  ];
+  const { wsKeys, rowKeys } = fleet.orderKeys(rows, (ws) => ws, '', new Set(['~you']));
+  assert.ok(wsKeys.get('~you') < wsKeys.get('w9'), 'NEEDS YOU above work');
+  assert.ok(rowKeys.get('w2:p1') < rowKeys.get('w1:p1'), 'the ask first');
+  const same = fleet.orderKeys(
+    [
+      { pane: 'a', workspace: '~you', rank: '2', minute: '000000000900' },
+      { pane: 'b', workspace: '~you', rank: '2', minute: '000000000100' },
+    ],
+    (ws) => ws,
+    '',
+    new Set(['~you']),
+  ).rowKeys;
+  assert.ok(same.get('b') < same.get('a'), 'the older wait first');
+  assert.equal(fleet.needWord('YOU', 'devops', 3 * 3600000), '■ YOU devops 3h');
+  assert.equal(fleet.needWord('ASK', 'devops', 60000), '■ ASK devops');
+});
+
+test('a lane is judged on the status the frame will draw: the idle grace and a held ask count', (t) => {
+  const frame = new Frame('test');
+  t.mock.property(config, 'idleGraceMs', 1000);
+  const entry = { pane: 'p1', status: 'idle' };
+  frame.previous.set('p1', 'working');
+  frame.lastWorkingAt.set('p1', 9500);
+  assert.equal(frame.needStatus(entry, 10000), 'working', 'a turn that just ended is still working');
+  assert.equal(frame.needStatus(entry, 12000), 'idle');
+  frame.blockedSince.set('p1', 1);
+  assert.equal(frame.needStatus(entry, 12000), 'blocked', 'a held ask stays an ask');
+  assert.equal(frame.needStatus({ pane: 'p1', status: 'working' }, 12000), 'working');
+});
