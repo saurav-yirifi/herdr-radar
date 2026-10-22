@@ -525,3 +525,21 @@ test('a lane is judged on the status the frame will draw: the idle grace and a h
   assert.equal(frame.needStatus(entry, 12000), 'blocked', 'a held ask stays an ask');
   assert.equal(frame.needStatus({ pane: 'p1', status: 'working' }, 12000), 'working');
 });
+
+test('writeGroups writes the run header word on the first pane of a run and clears it elsewhere', async (t) => {
+  t.mock.property(config, 'fleetView', true);
+  const writes = new Map();
+  t.mock.method(herdr, 'reportMetadataAsync', async (pane, src, tokens) => {
+    writes.set(pane, tokens);
+    return true;
+  });
+  const entries = [
+    { pane: 'w1:p1', workspace: 'w1' },
+    { pane: 'w2:p1', workspace: 'w2' },
+  ];
+  await state.writeGroups('src', entries, new Map([['w1', 'a'], ['w2', 'b']]), new Set(), {
+    sections: new Map([['w1:p1', 'WAITING · 1']]),
+  });
+  assert.equal(writes.get('w1:p1').section, 'WAITING · 1');
+  assert.equal(writes.get('w2:p1').section, null);
+});

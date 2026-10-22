@@ -47,7 +47,7 @@ test('a malformed token is no token', () => {
 test('each kind gets its rank and its word', () => {
   const at = (token, display = 'idle') => fleet.view(display, token, 150 * MIN);
   assert.deepEqual(at('1|ask'), { rank: '1', badge: 'ask 2h' });
-  assert.deepEqual(at('2|owner|YIR-489'), { rank: '2', badge: 'owner' });
+  assert.deepEqual(at('2|owner|YIR-489'), { rank: '2', badge: null });
   assert.deepEqual(at('3|tray|3'), { rank: '3', badge: 'tray 3' });
   assert.deepEqual(at('4|use'), { rank: '4', badge: 'in use' });
   assert.deepEqual(at('5|idle'), { rank: '5', badge: 'idle 2h' });
@@ -405,14 +405,15 @@ test("with the fleet view on, the badge and the work share one row under the tit
       .split(role[0])
       .join('')
       .replace(hold, '')
-      .replace(tint, ''),
+      .replace(tint, '')
+      .replaceAll('[{ token = "$section", fg = "#16161c", bold = true, dim = false }], ', ''),
     off,
-    'the badge and work row, the context cells, the account, the role word, the hold row and the machine tint are the only differences',
+    'the badge and work row, the context cells, the account, the role word, the hold row, the section row and the machine tint are the only differences',
   );
   // sidebarBlock throws when a row passes the limit; this is the count it checks.
   const count = (block) => {
     const row = block.split('\n').find((line) => line.startsWith('rows = ['));
-    return (row.split('], [')[2].match(/token = "/g) ?? []).length;
+    return (row.split('], [')[row.includes('$section') ? 3 : 2].match(/token = "/g) ?? []).length;
   };
   assert.equal(count(on), count(off) + 5); // the role word, the three context tiers and the account; the badge left the title row
   assert.ok(count(on) <= 16, `${count(on)} tokens on the agent row`);
@@ -445,7 +446,7 @@ test('the frame writes the rank and badge once, and again only when they change'
     size_over: null,
   };
   assert.deepEqual(writes, [
-    ['w5:p1', { fleet_rank: '2', fleet_badge: 'owner', ...none }],
+    ['w5:p1', { fleet_rank: '2', fleet_badge: null, ...none }],
     ['w5:p1', { fleet_rank: '4', fleet_badge: null, ...none }],
   ]);
 });
@@ -496,7 +497,7 @@ test('the frame writes a role pane its word as fleet_role and no badge; a lane i
   assert.deepEqual(writes.map(pick), [
     { fleet_badge: null, fleet_role: 'manager' },
     { fleet_badge: null, fleet_role: 'manager ask' },
-    { fleet_badge: 'owner', fleet_role: null },
+    { fleet_badge: null, fleet_role: null },
   ]);
 });
 
@@ -605,4 +606,26 @@ test('a fleet-on block with the badge still in the title row is stale, so a star
   assert.equal(managed.fleetStale(block, true), false);
   const older = block.split('[{ token = "$fleet_badge"').join('{ token = "$fleet_badge"');
   assert.equal(managed.fleetStale(older, true), true);
+});
+
+test('a lane run is WAITING when one needs the person, IDLE only when all are stale-idle, else WORKING', () => {
+  const run = (...rows) => fleet.laneSection(rows.map(([display, token]) => ({ display, fleet: token })));
+  assert.equal(run(['idle', '1|ask'], ['working', '4|use']), 'WAITING');
+  assert.equal(run(['idle', '2|owner|YIR-1']), 'WAITING');
+  assert.equal(run(['working', '4|use'], ['idle_stale', '5|idle']), 'WORKING');
+  assert.equal(run(['idle_stale', '5|idle'], ['idle_stale', '5|idle']), 'IDLE');
+  assert.deepEqual(fleet.LANE_SECTIONS, ['WAITING', 'WORKING', 'IDLE']);
+});
+
+test('the hot size shows only near or over and carries no account; a need row draws no logo', () => {
+  const state = require('../lib/state');
+  const ok = { acct: 'cl', ctx: { tier: 'ok', size: '40k' } };
+  const near = { acct: 'cl', ctx: { tier: 'near', size: '186k' } };
+  assert.deepEqual(state.sizeTokens(ok, true, true), { acct_row: null, size_ok: null, size_near: null, size_over: null });
+  assert.deepEqual(state.sizeTokens(near, true, true), { acct_row: null, size_ok: null, size_near: '186k', size_over: null });
+  assert.equal(state.sizeTokens({ acct: 'cl', ctx: null }, true, true).acct_row, null);
+  const line = state.composeLine({ pane: 'w5:p1', name: 'claude', title: 'T', fleet: '2|owner|YIR-1' }, 'idle', '', '', 0, '');
+  assert.ok(line.logo);
+  assert.equal(state.stateTokens('idle', line, 'T', 'need').logo, null);
+  assert.equal(state.stateTokens('idle', line, 'T', null).logo, line.logo);
 });
