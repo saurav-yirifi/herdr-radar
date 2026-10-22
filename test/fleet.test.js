@@ -566,9 +566,11 @@ test('the role cell reads only a dialog and the role names, so no persona name t
   const rules = [...roleCell.matchAll(/contains = "([^"]+)", fg = "([^"]+)"/g)].map(([, word, fg]) => [word, fg]);
   // a dialog first, in the blocked red, matched with its space so `taskmaster` stays plain
   assert.deepEqual(rules[0], [' ask', palette.stateFor('dark').blocked]);
+  // and the glyph a NEEDS YOU row's word starts with, in the same red
+  assert.deepEqual(rules[1], ['■', palette.stateFor('dark').blocked]);
   assert.deepEqual(
     rules
-      .slice(1)
+      .slice(2)
       .map(([word]) => word)
       .sort(),
     [...fleet.ROLES].sort(),
