@@ -397,7 +397,7 @@ test('the services head reads SERVICES with its machine and rollup; its old lane
   assert.equal(writes.get('w5:p2').group, null, 'a member row carries no header');
 });
 
-test('the services workspace splits into SERVICES, BUILDERS, CREW and PMO headers, in that order', async (t) => {
+test('the services workspace splits into SERVICES, CREW, PMO and BUILDERS headers, in that order', async (t) => {
   t.mock.property(config, 'fleetView', true);
   t.mock.property(config, 'machineLabel', 'x1pro-1');
   const writes = new Map();
@@ -422,8 +422,8 @@ test('the services workspace splits into SERVICES, BUILDERS, CREW and PMO header
   );
   assert.equal(split.entries[1].realWorkspace, 'w5');
   assert.deepEqual([...split.services].sort(), ['w5', 'w5~builders', 'w5~crew', 'w5~pmo']);
-  const ranks = [0, 1, 5, 2].map((i) => fleet.orderRank('idle', split.entries[i].fleet, true));
-  assert.deepEqual([...ranks].sort(), ranks, 'sections sort services, builders, crew, pmo');
+  const ranks = [0, 5, 2, 1].map((i) => fleet.orderRank('idle', split.entries[i].fleet, true));
+  assert.deepEqual([...ranks].sort(), ranks, 'sections sort services, crew, pmo, builders');
 
   await state.writeGroups('src', split.entries, new Map(), new Set(), {
     parentOf: new Map(),
