@@ -629,3 +629,19 @@ test('the hot size shows only near or over and carries no account; a need row dr
   assert.equal(state.stateTokens('idle', line, 'T', 'need').logo, null);
   assert.equal(state.stateTokens('idle', line, 'T', null).logo, line.logo);
 });
+
+test('a NEEDS row carries the tree down its second line: a bar under a tee, blank under the corner', async (t) => {
+  t.mock.property(config, 'fleetView', true);
+  const { Frame } = require('../lib/frame');
+  const frame = new Frame('test');
+  const sent = [];
+  t.mock.method(herdr, 'reportMetadataAsync', async (pane, src, tokens) => {
+    sent.push(tokens.fleet_badge);
+    return true;
+  });
+  for (const margin of ['  ├─ ', '  └─ ']) {
+    frame.fleetJobs({ pane: `w${sent.length}:p1`, need: 'YOU', project: 'x', fleet: '2|owner|YIR-1' }, 'idle', Date.now(), [], [], null, margin);
+  }
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(sent, ['​  │  ', '​      '].map((s, i) => (i ? '​' + '  ' + '  ' + ' ' : s)).map((s) => s));
+});
