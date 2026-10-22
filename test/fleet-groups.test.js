@@ -396,3 +396,43 @@ test('the services head reads SERVICES with its machine and rollup; its old lane
   assert.equal(writes.get('wQ:p1').group_parent, 'sb-herdr-manager  ■1');
   assert.equal(writes.get('w5:p2').group, null, 'a member row carries no header');
 });
+
+test('the services workspace splits into SERVICES, BUILDERS and CREW headers, in that order', async (t) => {
+  t.mock.property(config, 'fleetView', true);
+  t.mock.property(config, 'machineLabel', 'x1pro-1');
+  const writes = new Map();
+  t.mock.method(herdr, 'reportMetadataAsync', async (pane, src, tokens) => {
+    writes.set(pane, tokens);
+    return true;
+  });
+  const at = (pane, fleetToken) => ({ pane, workspace: 'w5', fleet: fleetToken });
+  const split = fleet.sections([
+    at('w5:p1', '8|role|manager'),
+    at('w5:p2', '8|role|builder-2'),
+    at('w5:p3', '8|role|pmo-1'),
+    at('w5:p4', '8|role|wow-pack'),
+    at('w5:p5', '8|role|builder-7'),
+    at('w5:p6', '8|role|herdr-impl-3'),
+    { pane: 'w9:p1', workspace: 'w9', fleet: '2|owner|YIR-1' },
+  ]);
+  assert.deepEqual(
+    split.entries.map((entry) => entry.workspace),
+    ['w5', 'w5~builders', 'w5~crew', 'w5', 'w5~builders', 'w5~crew', 'w9'],
+  );
+  assert.equal(split.entries[1].realWorkspace, 'w5');
+  assert.deepEqual([...split.services].sort(), ['w5', 'w5~builders', 'w5~crew']);
+  const ranks = split.entries.slice(0, 3).map((entry) => fleet.orderRank('idle', entry.fleet, true));
+  assert.deepEqual([...ranks].sort(), ranks, 'sections sort services, builders, crew');
+
+  await state.writeGroups('src', split.entries, new Map(), new Set(), {
+    parentOf: new Map(),
+    orphanRepo: new Map(),
+    familyOf: (ws) => ws,
+    services: split.services,
+    titles: split.titles,
+  });
+  assert.equal(writes.get('w5:p1').group, 'SERVICES · x1pro-1');
+  assert.equal(writes.get('w5:p2').group, 'BUILDERS · x1pro-1');
+  assert.equal(writes.get('w5:p3').group, 'CREW · x1pro-1');
+  assert.equal(writes.get('w5:p5').group, null, 'a second builder is a member row');
+});
