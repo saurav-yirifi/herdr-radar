@@ -511,6 +511,7 @@ test('NEEDS YOU is one section on top: the rows have no lead and run oldest firs
   assert.ok(same.get('b') < same.get('a'), 'the older wait first');
   assert.equal(fleet.needWord('YOU', 'devops', 3 * 3600000), '■ YOU devops 3h');
   assert.equal(fleet.needWord('ASK', 'devops', 60000), '■ ASK devops');
+  assert.equal(fleet.needWord('BLOCKED', 'yirifi-ops-refinery', 3600000, 'mac-1'), '■ BLOCKED yirifi-ops-refinery (mac-1) 1h', 'a lane off the home machine names its machine');
 });
 
 test('a lane is judged on the status the frame will draw: the idle grace and a held ask count', (t) => {
