@@ -439,3 +439,24 @@ test('the services workspace splits into SERVICES, CREW, PMO and BUILDERS header
   assert.equal(writes.get('w5:p7').group, null, 'a second pmo is a member row');
   assert.equal(writes.get('w5:p5').group, null, 'a second builder is a member row');
 });
+
+test('a flat section has no lead row: every pane, the first too, hangs off its header', () => {
+  const shown = [
+    { pane: 'w5:p1', workspace: 'w5' },
+    { pane: 'w5:p2', workspace: 'w5' },
+    { pane: 'w5~pmo:p3', workspace: 'w5~pmo' },
+    { pane: 'w5~pmo:p4', workspace: 'w5~pmo' },
+    { pane: 'w5~pmo:p5', workspace: 'w5~pmo' },
+    { pane: 'w5~crew:p6', workspace: 'w5~crew' },
+  ];
+  assert.deepEqual(
+    [...state.treeCorners(shown, new Set(['w5~pmo', 'w5~crew']))],
+    [
+      ['w5:p2', '└─ '],
+      ['w5~pmo:p3', '├─ '],
+      ['w5~pmo:p4', '├─ '],
+      ['w5~pmo:p5', '└─ '],
+      ['w5~crew:p6', '└─ '],
+    ],
+  );
+});
