@@ -643,5 +643,5 @@ test('a NEEDS row carries the tree down its second line: a bar under a tee, blan
     frame.fleetJobs({ pane: `w${sent.length}:p1`, need: 'YOU', project: 'x', fleet: '2|owner|YIR-1' }, 'idle', Date.now(), [], [], null, margin);
   }
   await new Promise((resolve) => setImmediate(resolve));
-  assert.deepEqual(sent, ['​  │  ', '​      '].map((s, i) => (i ? '​' + '  ' + '  ' + ' ' : s)).map((s) => s));
+  assert.deepEqual(sent, ['\u200b│', '\u200b \u200b']);
 });
