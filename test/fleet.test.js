@@ -614,7 +614,8 @@ test('a lane run is WAITING when one needs the person, IDLE only when all are st
   assert.equal(run(['idle', '2|owner|YIR-1']), 'WAITING');
   assert.equal(run(['working', '4|use'], ['idle_stale', '5|idle']), 'WORKING');
   assert.equal(run(['idle_stale', '5|idle'], ['idle_stale', '5|idle']), 'IDLE');
-  assert.deepEqual(fleet.LANE_SECTIONS, ['WAITING', 'WORKING', 'IDLE']);
+  assert.equal(run(['idle', '9|test|w4:p6'], ['done', '9|test|w4:p7']), 'TESTS', 'test lanes sort last: a run of their own');
+  assert.deepEqual(fleet.LANE_SECTIONS, ['WAITING', 'WORKING', 'IDLE', 'TESTS']);
 });
 
 test('the hot size shows only near or over and carries no account; a need row draws no logo', () => {
