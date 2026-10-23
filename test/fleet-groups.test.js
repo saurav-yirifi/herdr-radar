@@ -314,14 +314,14 @@ test('a rollup that moves rewrites only the head rows of its family; an unchange
   );
 });
 
-test("the manager's workspace is the services group; a workspace without the manager is not", () => {
+test('a workspace holding a role stamp is the services group; one with only lanes is not', () => {
   const found = fleet.services([
     { pane: 'w5:p1', workspace: 'w5', fleet: '8|role|manager' },
     { pane: 'w5:p2', workspace: 'w5', fleet: null },
     { pane: 'w7:p1', workspace: 'w7', fleet: '8|role|executor' },
     { pane: 'w8:p1', workspace: 'w8', fleet: '2|owner|YIR-1' },
   ]);
-  assert.deepEqual([...found], ['w5']);
+  assert.deepEqual([...found].sort(), ['w5', 'w7']);
 });
 
 test("the services group's lanes leave its tree for their repo's header, and the group sorts below all work", () => {
@@ -418,10 +418,10 @@ test('the services workspace splits into SERVICES, CREW, PMO and BUILDERS header
   ]);
   assert.deepEqual(
     split.entries.map((entry) => entry.workspace),
-    ['w5', 'w5~builders', 'w5~pmo', 'w5', 'w5~builders', 'w5~crew', 'w5~pmo', 'w9'],
+    ['~svc', '~svc~builders', '~svc~pmo', '~svc', '~svc~builders', '~svc~crew', '~svc~pmo', 'w9'],
   );
   assert.equal(split.entries[1].realWorkspace, 'w5');
-  assert.deepEqual([...split.services].sort(), ['w5', 'w5~builders', 'w5~crew', 'w5~pmo']);
+  assert.deepEqual([...split.services].sort(), ['~svc', '~svc~builders', '~svc~crew', '~svc~pmo']);
   const ranks = [0, 5, 2, 1].map((i) => fleet.orderRank('idle', split.entries[i].fleet, true));
   assert.deepEqual([...ranks].sort(), ranks, 'sections sort services, crew, pmo, builders');
 
@@ -542,4 +542,42 @@ test('writeGroups writes the run header word on the first pane of a run and clea
   });
   assert.equal(writes.get('w1:p1').section, 'WAITING · 1');
   assert.equal(writes.get('w2:p1').section, null);
+});
+
+test("services follow the role stamps, not the manager's workspace: w5 stays services when the manager sits in wP1", () => {
+  const entries = [
+    { pane: 'wP1:p1', workspace: 'wP1', fleet: '8|role|manager' },
+    { pane: 'wP1:p8', workspace: 'wP1', fleet: '8|role|deputy' },
+    { pane: 'w5:p3', workspace: 'w5', fleet: '8|role|dispatcher' },
+    { pane: 'w5:p9', workspace: 'w5', fleet: '8|role|pmo-2' },
+    { pane: 'w5:p2', workspace: 'w5', fleet: null },
+    { pane: 'wQ:p1', workspace: 'wQ', fleet: '2|owner|YIR-1' },
+  ];
+  assert.deepEqual([...fleet.services(entries)].sort(), ['w5', 'wP1']);
+});
+
+test('a machine with no manager still groups its role sessions as services', () => {
+  const entries = [
+    { pane: 'w2:p1', workspace: 'w2', fleet: '8|role|pmo-1' },
+    { pane: 'w2:p2', workspace: 'w2', fleet: '8|role|builder-4' },
+  ];
+  assert.deepEqual([...fleet.services(entries)], ['w2']);
+});
+
+test('services from every workspace share one SERVICES, CREW, PMO and BUILDERS set of headers, the manager and deputy leading', () => {
+  const split = fleet.sections([
+    { pane: 'w5:p3', workspace: 'w5', fleet: '8|role|dispatcher' },
+    { pane: 'w5:p9', workspace: 'w5', fleet: '8|role|pmo-2' },
+    { pane: 'wP1:p8', workspace: 'wP1', fleet: '8|role|deputy' },
+    { pane: 'wP1:p1', workspace: 'wP1', fleet: '8|role|manager' },
+    { pane: 'wP1:p4', workspace: 'wP1', fleet: '8|role|builder-13' },
+  ]);
+  assert.deepEqual([...split.services].sort(), ['~svc', '~svc~builders', '~svc~pmo']);
+  assert.deepEqual(
+    split.entries.filter((entry) => entry.workspace === '~svc').map((entry) => entry.pane),
+    ['wP1:p1', 'wP1:p8', 'w5:p3'],
+    'manager, then deputy, then the rest',
+  );
+  assert.equal(split.entries.find((entry) => entry.pane === 'w5:p3').realWorkspace, 'w5', 'the Spaces list keeps the real workspace');
+  assert.equal(split.titles.get('~svc'), 'SERVICES');
 });
