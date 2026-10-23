@@ -25,13 +25,13 @@ function capture(t) {
   return writes;
 }
 
-test('at home a header drops the machine and carries the account; elsewhere it keeps the machine', async (t) => {
+test('at home a header drops the machine and carries the ticket; elsewhere it keeps the machine', async (t) => {
   t.mock.property(config, 'fleetView', true);
   t.mock.property(config, 'fleetHome', 'x1pro-1');
   const entries = [
-    { pane: 'w1:p1', workspace: 'w1', acct: 'cw' },
-    { pane: 'w2:p1', workspace: 'w2', acct: 'cl' },
-    { pane: 'w2:p2', workspace: 'w2', acct: 'cw2' },
+    { pane: 'w1:p1', workspace: 'w1', work: { tier: 'ok', key: 'YIR-1', rest: '' } },
+    { pane: 'w2:p1', workspace: 'w2', work: { tier: 'ok', key: 'YIR-2', rest: 'PR #3 · CI ✓' } },
+    { pane: 'w2:p2', workspace: 'w2', work: null },
   ];
   const labels = new Map([['w1', 'axi-onboarding'], ['w2', 'revoxy']]);
   for (const [machine, host] of [['x1pro-1', ''], ['mini-1', ' (mini-1)']]) {
@@ -41,8 +41,8 @@ test('at home a header drops the machine and carries the account; elsewhere it k
       rollups: new Map([['w1', '■1']]),
       familyOf: (ws) => ws,
     });
-    assert.equal(writes.get('w1:p1').group, `axi-onboarding cw${host}  ■1`);
-    assert.equal(writes.get('w2:p1').group, `revoxy cl${host}`);
+    assert.equal(writes.get('w1:p1').group, `axi-onboarding YIR-1${host}  ■1`);
+    assert.equal(writes.get('w2:p1').group, `revoxy YIR-2${host}`);
     // line 2's account is the frame's (fleetJobs), not the header writer's
     assert.ok(!('acct_row' in writes.get('w1:p1')));
     t.mock.restoreAll();
@@ -60,7 +60,7 @@ test('the services header carries no account', async (t) => {
   assert.equal(writes.get('w5:p1').group, 'SERVICES · x1pro-1');
 });
 
-test('a worktree header carries its account too; its branch tag rides the work row', async (t) => {
+test('a worktree header carries its ticket; the PR and CI ride the work row, and `no PR` draws nothing', async (t) => {
   t.mock.property(config, 'fleetView', true);
   t.mock.property(config, 'machineLabel', 'x1pro-1');
   t.mock.property(config, 'fleetHome', 'x1pro-1');
@@ -69,16 +69,20 @@ test('a worktree header carries its account too; its branch tag rides the work r
   await state.writeGroups(
     'src',
     [
-      { pane: 'w1:p1', workspace: 'w1', acct: 'cl' },
-      { pane: 'w2:p1', workspace: 'w2', acct: 'cw', branchTag: '⑂ fix/radar' },
+      { pane: 'w1:p1', workspace: 'w1', work: { tier: 'ok', key: 'YIR-1', rest: '' } },
+      { pane: 'w2:p1', workspace: 'w2', work: { tier: 'red', key: 'YIR-2', rest: 'PR #3 · CI ✗' } },
     ],
     new Map([['w1', 'sb-herdr-manager'], ['w2', 'feat-x']]),
     new Set(),
     { parentOf: new Map([['w2', 'w1']]) },
   );
-  assert.ok(writes.get('w2:p1').group.endsWith('feat-x cw'), writes.get('w2:p1').group);
-  assert.equal(writes.get('w2:p1').work_branch, '⑂ fix/radar');
-  assert.equal(writes.get('w1:p1').work_branch, null);
+  assert.ok(writes.get('w2:p1').group.endsWith('feat-x YIR-2'), writes.get('w2:p1').group);
+  assert.deepEqual(
+    [writes.get('w2:p1').pr_ok, writes.get('w2:p1').pr_wait, writes.get('w2:p1').pr_red],
+    [null, null, 'PR #3 · CI ✗'],
+  );
+  assert.deepEqual([writes.get('w1:p1').pr_ok, writes.get('w1:p1').pr_wait, writes.get('w1:p1').pr_red], [null, null, null]);
+  assert.ok(!('work_branch' in writes.get('w2:p1')));
 });
 
 test('without the fleet view the header is upstream: no account, no machine, nothing new written', async (t) => {
@@ -116,28 +120,22 @@ test("the title is the agent's report, else its ticket's title, else the termina
   }
 });
 
-test('a branch tag only for a session with work on its row and off main, cut to 12', async (t) => {
+test('the snapshot splits the lane work into its ticket and what is left, `no PR` being nothing', async (t) => {
   t.mock.property(config, 'fleetView', true);
-  t.mock.property(config, 'worktreeMark', '⑂');
-  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'radar-rows-'));
-  fs.mkdirSync(path.join(repo, '.git'));
-  const head = (ref) => fs.writeFileSync(path.join(repo, '.git', 'HEAD'), `ref: refs/heads/${ref}\n`);
-  const tagOf = async (tokens) => {
-    t.mock.method(herdr, 'agentsAsync', async () => [agent(tokens, { cwd: repo, foreground_cwd: repo })]);
+  const workOf = async (tokens) => {
+    t.mock.method(herdr, 'agentsAsync', async () => [agent(tokens)]);
     const [entry] = await state.snapshot();
-    return entry.branchTag;
+    t.mock.restoreAll();
+    t.mock.property(config, 'fleetView', true);
+    return entry.work;
   };
-  head('feat/radar-agent-rows');
-  assert.equal(await tagOf({ work_ok: 'YIR-1 · no PR', acct: 'cw' }), '⑂ feat/radar-…');
-  assert.equal(await tagOf({}), null, 'no ticket, no line 3: no tag');
-  head('fix/radar');
-  assert.equal(await tagOf({ work_red: 'YIR-1 · PR #2 · CI ✗' }), '⑂ fix/radar');
-  head('main');
-  assert.equal(await tagOf({ work_ok: 'YIR-1 · no PR' }), null);
-  fs.rmSync(repo, { recursive: true, force: true });
+  assert.deepEqual(await workOf({ work_ok: 'YIR-1 · no PR', acct: 'cw' }), { tier: 'ok', key: 'YIR-1', rest: '' });
+  assert.deepEqual(await workOf({ work_wait: 'YIR-1 · PR #2 draft · CI …' }), { tier: 'wait', key: 'YIR-1', rest: 'PR #2 draft · CI …' });
+  assert.deepEqual(await workOf({ work_red: 'YIR-1 · PR #2 · CI ✗' }), { tier: 'red', key: 'YIR-1', rest: 'PR #2 · CI ✗' });
+  assert.equal(await workOf({}), null, 'no ticket, no work');
 });
 
-test('the managed block: the account cell is the row cell, the work row has the branch, an old block is stale', () => {
+test('the managed block: the account cell is the row cell, the work row has the PR and CI and no branch, an old block is stale', () => {
   const block = managed.sidebarBlock('dark');
   assert.ok(block.includes('"$acct_row"'));
   for (const tier of ['ok', 'near', 'over']) {
@@ -146,7 +144,7 @@ test('the managed block: the account cell is the row cell, the work row has the 
   }
   assert.equal(managed.fleetStale(block.replaceAll('$size_', '$ctx_'), true), true, 'a block from before the packing is stale');
   assert.ok(!block.includes('"$acct"'));
-  assert.ok(block.includes('"$work_branch"'));
+  assert.ok(block.includes('"$pr_ok"') && !block.includes('$work_branch'));
   assert.equal(managed.fleetStale(block.replaceAll('$acct_row', '$acct'), true), true);
 });
 

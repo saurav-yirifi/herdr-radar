@@ -160,10 +160,10 @@ test('a fleet-on block from before the role colours and health line is stale, so
     true,
   );
   // and one from before the work cells (row 9)
-  assert.equal(managed.fleetStale(current.replace(/, \{ token = "\$work_ok".*?\}\], /g, '], '), true), true);
+  assert.equal(managed.fleetStale(current.replace(/, \{ token = "\$pr_ok".*?\}\], /g, '], '), true), true);
   // and one with the work on a row of its own, under the badge's
   assert.equal(
-    managed.fleetStale(current.replace(/, \{ token = "\$work_ok"/g, '], [{ token = "$work_ok"'), true),
+    managed.fleetStale(current.replace(/, \{ token = "\$pr_ok"/g, '], [{ token = "$pr_ok"'), true),
     true,
   );
   config.fleetView = false;
@@ -322,7 +322,7 @@ test("with the fleet view on, the badge and the work share one row under the tit
   const off = managed.sidebarBlock('light');
   // The badge is not in the title row (fleet view 6.7): in front of the title
   // it pushed the title off a narrow sidebar. It opens a row the work shares.
-  const badge = on.match(/\[\{ token = "\$fleet_badge"[^\n]*?"\$work_red"[^\n]*?\}\], /g) ?? [];
+  const badge = on.match(/\[\{ token = "\$fleet_badge"[^\n]*?"\$pr_red"[^\n]*?\}\], /g) ?? [];
   assert.ok(badge.length > 0, 'no badge row in the block');
   assert.equal(new Set(badge).size, 1, 'one badge row, the same on every entry');
   // The owner's glance has no row: the tab bar's health line carries it (the person,
@@ -353,16 +353,16 @@ test("with the fleet view on, the badge and the work share one row under the tit
   assert.match(ctx[0], /"\$size_over", fg = "[^"]+", bold = true/, 'over is bold');
   // The lane's work (row 9): ticket, PR and CI, three CI tiers, on the badge's row after the
   // badge (the person, 2026-10-07: a row each was "wasting lines").
-  const work = badge[0].match(/, \{ token = "\$work_ok"[^\n]*?"\$work_wait"[^\n]*?"\$work_red"[^\n]*?\}/g) ?? [];
+  const work = badge[0].match(/, \{ token = "\$pr_ok"[^\n]*?"\$pr_wait"[^\n]*?"\$pr_red"[^\n]*?\}/g) ?? [];
   assert.equal(work.length, 1, 'no work cells after the badge');
-  assert.ok(badge[0].indexOf('$fleet_badge') < badge[0].indexOf('$work_ok'), 'the badge before the work');
-  const wfg = (tier) => work[0].match(new RegExp(`"\\$work_${tier}", fg = "([^"]+)"`))[1];
+  assert.ok(badge[0].indexOf('$fleet_badge') < badge[0].indexOf('$pr_ok'), 'the badge before the work');
+  const wfg = (tier) => work[0].match(new RegExp(`"\\$pr_${tier}", fg = "([^"]+)"`))[1];
   assert.deepEqual(
     [wfg('ok'), wfg('wait'), wfg('red')],
     [palette.stateFor('light').idleNormal, palette.brand.other, palette.stateFor('light').blocked],
     'each CI tier in its own colour',
   );
-  assert.match(work[0], /"\$work_red", fg = "[^"]+", bold = true/, 'failing CI is bold');
+  assert.match(work[0], /"\$pr_red", fg = "[^"]+", bold = true/, 'failing CI is bold');
   assert.ok(agentRow.indexOf(badge[0]) < agentRow.indexOf('["$gap"]'), 'and before the gap');
   // The account (2026-10-14): one second-rank cell after the size, in front of the title,
   // `acct_row` since the header carries it on a lane (round 2).
