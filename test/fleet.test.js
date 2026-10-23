@@ -640,9 +640,27 @@ test('a NEEDS row carries the tree down its second line: a bar under a tee, blan
     sent.push(tokens.fleet_badge);
     return true;
   });
+  const work = { tier: 'ok', key: 'YIR-1', rest: 'PR #1 · CI ✓' };
   for (const margin of ['  ├─ ', '  └─ ']) {
-    frame.fleetJobs({ pane: `w${sent.length}:p1`, need: 'YOU', project: 'x', fleet: '2|owner|YIR-1' }, 'idle', Date.now(), [], [], null, margin);
+    frame.fleetJobs({ pane: `w${sent.length}:p1`, need: 'YOU', project: 'x', fleet: '2|owner|YIR-1', work }, 'idle', Date.now(), [], [], null, margin);
   }
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(sent, ['\u200b│', '\u200b \u200b']);
+});
+
+test('a NEEDS row with no PR line writes no second line at all, not an empty one with the tree bar', async (t) => {
+  t.mock.property(config, 'fleetView', true);
+  const { Frame } = require('../lib/frame');
+  const frame = new Frame('test');
+  const sent = [];
+  t.mock.method(herdr, 'reportMetadataAsync', async (pane, src, tokens) => {
+    sent.push(tokens.fleet_badge);
+    return true;
+  });
+  const bare = [null, { tier: 'ok', key: 'YIR-2', rest: '' }];
+  for (const work of bare) {
+    frame.fleetJobs({ pane: `w${sent.length}:p1`, need: 'ASK', project: 'x', fleet: '2|owner|YIR-1', work }, 'idle', Date.now(), [], [], null, '  ├─ ');
+  }
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(sent, [null, null]);
 });
