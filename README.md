@@ -290,6 +290,13 @@ herdr pane report-metadata <pane> --source herdr-manager --token 'hm_fleet=2|own
   owner · tray · working · idle · role · test — then by activity. Inside a group the
   workspace's first pane leads and the rest follow the same way. `prefix+a` flips
   `fleet ↔ active`; the cycle is `fleet → active → recent → off`.
+- **one family per lane, not per workspace**: a git worktree still hangs under its checkout;
+  any other workspace joins the family named by the manager's `hm_group` pane token, else by
+  its label, so two workspaces both labelled `backend-pr-fixes` draw one header and one tree.
+  The family takes the first member's workspace (a worktree's parent checkout, if one is in
+  it) and its header name. A pane stamped `hm_parent_pane` (any value) is the family's parent
+  row; unstamped, the first pane is. Off the lanes' home machine, the `WORKING · 4` run headers
+  name the machine too, `WORKING · 4 · mini-1`.
 - **a tree inside a workspace**: in `fleet` and `active`, the other panes of a workspace hang
   off its first row with `├─` / `└─` — the manager's workspace reads as the manager with its
   builder, executor and dispatcher under it.
