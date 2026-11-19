@@ -193,3 +193,13 @@ test('fleetJobs writes the packed cell, and rewrites it when the size moves', as
   assert.equal(writes.get('w5:p2').size_ok, null);
   assert.equal(writes.get('w5:p2').size_over, '235k cw2');
 });
+
+test("the snapshot reads the manager's lane, hm_group, and its lead stamp, hm_parent_pane", async (t) => {
+  t.mock.property(config, 'fleetView', true);
+  t.mock.method(herdr, 'agentsAsync', async () => [
+    agent({ hm_group: 'axi', hm_parent_pane: '1' }),
+    agent({}, { pane_id: 'w1:p2' }),
+  ]);
+  const [lead, other] = await state.snapshot();
+  assert.deepEqual([lead.group, lead.lead, other.group, other.lead], ['axi', true, null, false]);
+});

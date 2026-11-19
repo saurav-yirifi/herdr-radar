@@ -581,3 +581,85 @@ test('services from every workspace share one SERVICES, CREW, PMO and BUILDERS s
   assert.equal(split.entries.find((entry) => entry.pane === 'w5:p3').realWorkspace, 'w5', 'the Spaces list keeps the real workspace');
   assert.equal(split.titles.get('~svc'), 'SERVICES');
 });
+
+test('two workspaces with one label are one family: one header, one tree', () => {
+  const labels = new Map([
+    ['w2', 'backend-pr-fixes'],
+    ['w7', 'backend-pr-fixes'],
+    ['w9', 'other'],
+  ]);
+  const moved = fleet.lanes(
+    [
+      { pane: 'w2:p1', workspace: 'w2' },
+      { pane: 'w9:p1', workspace: 'w9' },
+      { pane: 'w7:p1', workspace: 'w7' },
+      { pane: 'w7:p2', workspace: 'w7' },
+    ],
+    labels,
+  );
+  assert.deepEqual(
+    moved.map((e) => [e.pane, e.workspace, e.realWorkspace]),
+    [
+      ['w2:p1', 'w2', undefined],
+      ['w9:p1', 'w9', undefined],
+      ['w7:p1', 'w2', 'w7'],
+      ['w7:p2', 'w2', 'w7'],
+    ],
+  );
+  const rows = moved.map((e) => ({ ...e, rank: '5', minute: minute(10) }));
+  const shown = Frame.prototype.fleetOrder(rows, fleet.orderKeys(rows, own));
+  assert.deepEqual([...state.groupBoundaries(shown).heads].sort(), ['w2:p1', 'w9:p1'], 'one header per family');
+  assert.deepEqual([...state.treeCorners(shown).keys()], ['w7:p1', 'w7:p2'], 'one tree under w2:p1');
+});
+
+test("the manager's hm_group merges workspaces of different labels; hm_parent_pane leads the tree", () => {
+  const labels = new Map([
+    ['w2', 'axi-a'],
+    ['w7', 'axi-b'],
+    ['w9', 'axi-a'],
+  ]);
+  const moved = fleet.lanes(
+    [
+      { pane: 'w2:p1', workspace: 'w2', group: 'axi' },
+      { pane: 'w7:p1', workspace: 'w7', group: 'axi', lead: true },
+      { pane: 'w9:p1', workspace: 'w9' },
+    ],
+    labels,
+  );
+  assert.deepEqual(
+    moved.map((e) => [e.pane, e.workspace]),
+    [
+      ['w7:p1', 'w2'],
+      ['w2:p1', 'w2'],
+      ['w9:p1', 'w9'],
+    ],
+    "the group outranks the label: w9 shares w2's label but not its group",
+  );
+  assert.deepEqual([...state.treeCorners(moved)], [['w2:p1', '└─ ']], 'the stamped pane is the parent row');
+});
+
+test('a worktree keeps the worktree rule; a parent checkout holds the merged family', () => {
+  const labels = new Map([
+    ['w1', 'repo'],
+    ['w3', 'repo'],
+    ['w5', 'repo'],
+  ]);
+  const moved = fleet.lanes(
+    [
+      { pane: 'w1:p1', workspace: 'w1' },
+      { pane: 'w3:p1', workspace: 'w3' },
+      { pane: 'w5:p1', workspace: 'w5' },
+    ],
+    labels,
+    new Map([['w5', 'repo']]),
+    new Map([['w5', 'w3']]),
+  );
+  assert.deepEqual(
+    moved.map((e) => [e.pane, e.workspace]),
+    [
+      ['w1:p1', 'w3'],
+      ['w3:p1', 'w3'],
+      ['w5:p1', 'w5'],
+    ],
+  );
+});
